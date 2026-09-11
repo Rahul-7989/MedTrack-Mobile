@@ -44,16 +44,19 @@ import com.example.ui.theme.WarmAmber
 import com.example.ui.theme.WarmCream
 import com.example.ui.theme.WarmIvory
 
+import kotlinx.coroutines.delay
+
 /**
  * Startup Splash Screen for MedTrack.
- * Checks active session on launch:
+ * Checks active session on launch / login:
  * - If logged out: immediately transitions to Home/Landing page.
  * - If logged in: resolves user state and navigates directly to their Hub Dashboard
- *   (or active onboarding step) without ever displaying the landing page.
+ *   (or active onboarding step) without ever displaying the landing page or a white screen delay.
  */
 @Composable
 fun MedTrackSplashScreen(
     modifier: Modifier = Modifier,
+    customMessage: String? = null,
     onDestinationResolved: (String) -> Unit
 ) {
     val scale = remember { Animatable(0.85f) }
@@ -76,9 +79,11 @@ fun MedTrackSplashScreen(
             // User is logged out -> route to Home page
             onDestinationResolved(MedTrackDestinations.HOME)
         } else {
-            // User is logged in -> route directly to their hub / state
+            // User is logged in -> resolve destination with smooth loading
             val destination = UserSessionRouter.resolveCurrentDestination()
             val route = UserSessionRouter.getRoute(destination)
+            // Ensure minimum display time for a smooth transition experience
+            delay(500)
             onDestinationResolved(route)
         }
     }
@@ -122,7 +127,7 @@ fun MedTrackSplashScreen(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "The family medication companion",
+                text = customMessage ?: "The family medication companion",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = MedTrackTextSecondary,

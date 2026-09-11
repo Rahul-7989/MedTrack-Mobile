@@ -49,7 +49,7 @@ fun MedicationHistoryButton(
         ),
         modifier = modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(40.dp)
             .testTag("medication_history_placeholder_button")
     ) {
         Row(
@@ -59,14 +59,14 @@ fun MedicationHistoryButton(
                 imageVector = Icons.Outlined.History,
                 contentDescription = null,
                 tint = ColorDarkWarmText.copy(alpha = 0.8f),
-                modifier = Modifier.size(17.dp)
+                modifier = Modifier.size(15.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = "Medication History",
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 12.5.sp,
+                fontSize = 11.5.sp,
                 color = ColorDarkWarmText
             )
         }

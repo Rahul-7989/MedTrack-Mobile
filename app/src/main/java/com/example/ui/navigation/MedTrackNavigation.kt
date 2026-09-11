@@ -106,8 +106,19 @@ fun MedTrackNavHost(
             ) + fadeOut(animationSpec = tween(durationMillis = 300))
         }
     ) {
-        composable(route = MedTrackDestinations.SPLASH) {
+        composable(
+            route = "${MedTrackDestinations.SPLASH}?message={message}",
+            arguments = listOf(
+                navArgument("message") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                    nullable = true
+                }
+            )
+        ) { backStackEntry ->
+            val customMessage = backStackEntry.arguments?.getString("message")?.takeIf { it.isNotBlank() }
             MedTrackSplashScreen(
+                customMessage = customMessage,
                 onDestinationResolved = { targetRoute ->
                     navController.navigate(targetRoute) {
                         popUpTo(MedTrackDestinations.SPLASH) { inclusive = true }

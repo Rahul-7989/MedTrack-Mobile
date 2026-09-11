@@ -68,6 +68,7 @@ import com.example.data.auth.AuthResult
 import com.example.data.auth.FirebaseAuthService
 import com.example.ui.hub.data.FamilyHubRepository
 import com.example.ui.profilesetup.data.UserProfileRepository
+import com.example.ui.navigation.MedTrackDestinations
 import com.example.ui.navigation.UserSessionRouter
 import com.example.ui.login.components.ForgotPasswordLink
 import com.example.ui.login.components.LoginBackgroundShapes
@@ -256,18 +257,14 @@ fun LoginScreen(
             val result = FirebaseAuthService.Instance.login(uiState.email, uiState.password)
             when (result) {
                 is AuthResult.Success -> {
-                    // Resolve exact destination based on email verification, profile, and hub status
-                    val destination = UserSessionRouter.resolveCurrentDestination()
-                    val targetRoute = UserSessionRouter.getRoute(destination)
-
                     uiState = uiState.copy(
                         isLoading = false,
                         isSuccess = true,
                         inlineError = null,
                         generalError = null
                     )
-                    snackbarHostState.showSnackbar("Welcome back to MedTrack!")
-                    onLoginSuccess(targetRoute)
+                    // Seamlessly show MedTrack splash screen + message to initialize and transition smoothly
+                    onLoginSuccess(MedTrackDestinations.SPLASH)
                 }
                 is AuthResult.Error -> {
                     val inlineErr = when (result.errorType) {

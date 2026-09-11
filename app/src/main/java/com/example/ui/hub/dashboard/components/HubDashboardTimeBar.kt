@@ -54,7 +54,7 @@ fun HubDashboardTimeBar(
                 text = dateLabel.uppercase(),
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 10.sp,
+                fontSize = 9.5.sp,
                 letterSpacing = 1.2.sp,
                 color = ColorTextMuted,
                 modifier = Modifier.testTag("hub_dashboard_date_label")
@@ -63,8 +63,8 @@ fun HubDashboardTimeBar(
             Text(
                 text = formattedTime,
                 fontFamily = SoraFontFamily,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
                 color = ColorDarkWarmText,
                 modifier = Modifier.testTag("hub_dashboard_current_time_text")
             )

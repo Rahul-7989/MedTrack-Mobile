@@ -79,8 +79,8 @@ fun HubMembersSection(
                 text = "MEMBERS",
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 10.5.sp,
-                letterSpacing = 1.6.sp,
+                fontSize = 9.5.sp,
+                letterSpacing = 1.4.sp,
                 color = ColorDustyTeal,
                 modifier = Modifier.testTag("hub_members_header_kicker")
             )
@@ -88,36 +88,36 @@ fun HubMembersSection(
             // Member count chip
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(6.dp))
                     .background(ColorWarmCream)
-                    .border(BorderStroke(1.dp, ColorBorderWarm), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 7.dp, vertical = 2.dp)
+                    .border(BorderStroke(1.dp, ColorBorderWarm), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
                     text = "${members.size} Total",
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 10.sp,
+                    fontSize = 9.5.sp,
                     color = ColorWarmNeutral
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(7.dp))
 
-        // Members Card Container
+        // Members Card Container (Compact)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .shadow(
-                    elevation = 2.dp,
-                    shape = RoundedCornerShape(16.dp),
+                    elevation = 1.5.dp,
+                    shape = RoundedCornerShape(13.dp),
                     ambientColor = ColorAmbientShadow,
                     spotColor = ColorSpotShadow
                 )
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(13.dp))
                 .background(ColorWarmIvory)
-                .border(BorderStroke(1.2.dp, ColorBorderWarm), RoundedCornerShape(16.dp))
+                .border(BorderStroke(1.dp, ColorBorderWarm), RoundedCornerShape(13.dp))
                 .testTag("hub_members_container")
         ) {
             if (members.isEmpty()) {
@@ -125,7 +125,7 @@ fun HubMembersSection(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(14.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -133,14 +133,14 @@ fun HubMembersSection(
                             imageVector = Icons.Outlined.Group,
                             contentDescription = null,
                             tint = ColorWarmNeutral.copy(alpha = 0.6f),
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "No approved members yet",
                             fontFamily = SoraFontFamily,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
+                            fontSize = 11.5.sp,
                             color = ColorWarmNeutral
                         )
                     }
@@ -155,9 +155,9 @@ fun HubMembersSection(
 
                         if (index < members.size - 1) {
                             HorizontalDivider(
-                                color = ColorBorderWarm.copy(alpha = 0.65f),
-                                thickness = 1.dp,
-                                modifier = Modifier.padding(horizontal = 14.dp)
+                                color = ColorBorderWarm.copy(alpha = 0.55f),
+                                thickness = 0.8.dp,
+                                modifier = Modifier.padding(horizontal = 10.dp)
                             )
                         }
                     }
@@ -168,7 +168,7 @@ fun HubMembersSection(
 }
 
 /**
- * Individual member item row displaying avatar, name, and role tag.
+ * Compact member item row displaying avatar, name, child reminder info, and role tag.
  */
 @Composable
 private fun MemberRowItem(
@@ -196,39 +196,38 @@ private fun MemberRowItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 11.dp)
+            .padding(horizontal = 11.dp, vertical = 6.dp)
             .semantics { contentDescription = "${member.name}, role $roleLabel" },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Left: Avatar + Name & Subtitle
+        // Left: Small Avatar + Name & Subtitle
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(11.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.weight(1f, fill = false)
         ) {
             ProfileAvatarView(
                 avatarType = member.avatarType,
-                size = 36.dp
+                size = 28.dp
             )
 
             Column {
                 Text(
                     text = member.name,
                     fontFamily = SoraFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
                     color = ColorDarkWarmText,
                     maxLines = 1
                 )
 
                 if (member.isChild && !member.reminderResponsibleMemberName.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(1.dp))
                     Text(
                         text = "Remind: ${member.reminderResponsibleMemberName}",
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.Normal,
-                        fontSize = 10.sp,
+                        fontSize = 9.sp,
                         color = ColorWarmNeutral
                     )
                 }
@@ -238,16 +237,16 @@ private fun MemberRowItem(
         // Right: Role Tag
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
+                .clip(RoundedCornerShape(5.dp))
                 .background(tagBgColor)
-                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .padding(horizontal = 6.dp, vertical = 2.dp)
                 .testTag("hub_member_role_tag_${member.id}")
         ) {
             Text(
                 text = roleLabel,
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 10.5.sp,
+                fontSize = 9.5.sp,
                 color = tagTextColor
             )
         }

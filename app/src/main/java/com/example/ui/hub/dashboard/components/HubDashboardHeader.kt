@@ -120,7 +120,7 @@ fun HubDashboardHeader(
                     text = "FAMILY HUB",
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 10.sp,
+                    fontSize = 9.5.sp,
                     letterSpacing = 1.6.sp,
                     color = ColorDustyTeal,
                     modifier = Modifier.testTag("hub_dashboard_kicker")
@@ -128,13 +128,13 @@ fun HubDashboardHeader(
 
                 Spacer(modifier = Modifier.height(2.dp))
 
-                // Prominent Extra-Bold Hub Name (reduced from 24sp to 19sp while keeping ExtraBold)
+                // Dominant Large & Extra-Bold Hub Name
                 Text(
                     text = hubName,
                     fontFamily = SoraFontFamily,
-                    fontWeight = FontWeight(800), // ExtraBold 800
-                    fontSize = 19.sp,
-                    lineHeight = 23.sp,
+                    fontWeight = FontWeight.ExtraBold, // ExtraBold 800
+                    fontSize = 26.sp,
+                    lineHeight = 31.sp,
                     color = ColorDarkWarmText,
                     modifier = Modifier.testTag("hub_dashboard_title")
                 )

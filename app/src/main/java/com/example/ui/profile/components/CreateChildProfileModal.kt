@@ -112,13 +112,13 @@ fun CreateChildProfileModal(
         sheetState = sheetState,
         containerColor = ColorWarmIvory,
         dragHandle = null,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         modifier = Modifier.testTag("create_child_profile_modal")
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 22.dp, vertical = 20.dp)
+                .padding(horizontal = 18.dp, vertical = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
             // Modal Header: Title + Close Button
@@ -132,16 +132,16 @@ fun CreateChildProfileModal(
                         text = "NEW DEPENDENT",
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.5.sp,
-                        letterSpacing = 1.4.sp,
+                        fontSize = 9.sp,
+                        letterSpacing = 1.2.sp,
                         color = ColorDustyTeal
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(1.dp))
                     Text(
                         text = "Create Child Profile",
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 19.sp,
+                        fontSize = 16.5.sp,
                         color = ColorDarkWarmText
                     )
                 }
@@ -149,7 +149,7 @@ fun CreateChildProfileModal(
                 IconButton(
                     onClick = onDismiss,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(ColorWarmCream)
                         .border(BorderStroke(1.dp, ColorBorderWarm), CircleShape)
@@ -159,58 +159,58 @@ fun CreateChildProfileModal(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "Close",
                         tint = ColorDarkWarmText,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Dynamic Child Avatar Preview
+            // Dynamic Child Avatar Preview (Compact)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(14.dp))
                     .background(ColorWarmCream)
-                    .border(BorderStroke(1.2.dp, ColorBorderWarm), RoundedCornerShape(20.dp))
-                    .padding(vertical = 16.dp),
+                    .border(BorderStroke(1.dp, ColorBorderWarm), RoundedCornerShape(14.dp))
+                    .padding(vertical = 11.dp, horizontal = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     ProfileAvatarView(
                         avatarType = selectedGender.toChildAvatarType(),
-                        size = 64.dp
+                        size = 48.dp
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(5.dp))
                     Text(
                         text = if (childName.isNotBlank()) childName else "Child Avatar Preview",
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         color = ColorDarkWarmText
                     )
                     Text(
                         text = "Belongs to $hubName",
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.Normal,
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         color = ColorWarmNeutral
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Field 1: Child Name
             Text(
                 text = "CHILD'S NAME",
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 10.5.sp,
-                letterSpacing = 1.2.sp,
+                fontSize = 9.5.sp,
+                letterSpacing = 1.1.sp,
                 color = ColorWarmNeutral
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             OutlinedTextField(
                 value = childName,
                 onValueChange = {
@@ -221,12 +221,18 @@ fun CreateChildProfileModal(
                     Text(
                         text = "e.g. Liam, Sophia",
                         fontFamily = SoraFontFamily,
-                        fontSize = 14.sp,
+                        fontSize = 12.5.sp,
                         color = ColorWarmNeutral.copy(alpha = 0.6f)
                     )
                 },
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    fontFamily = SoraFontFamily,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = ColorDarkWarmText
+                ),
                 singleLine = true,
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(11.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = ColorWarmIvory,
                     unfocusedContainerColor = ColorWarmIvory,
@@ -240,85 +246,144 @@ fun CreateChildProfileModal(
                     .testTag("child_name_input")
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(11.dp))
 
-            // Field 2: Gender Selector (Male, Female, Prefer not to say)
+            // Field 2: Gender Selector (Row 1: Boy & Girl; Row 2: Prefer not to say)
             Text(
                 text = "GENDER",
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 10.5.sp,
-                letterSpacing = 1.2.sp,
+                fontSize = 9.5.sp,
+                letterSpacing = 1.1.sp,
                 color = ColorWarmNeutral
             )
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(
+            Spacer(modifier = Modifier.height(4.dp))
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                ProfileGender.entries.forEach { gender ->
-                    val isSelected = selectedGender == gender
-                    val label = when (gender) {
-                        ProfileGender.MALE -> "Boy"
-                        ProfileGender.FEMALE -> "Girl"
-                        ProfileGender.PREFER_NOT_TO_SAY -> "Prefer not to say"
-                    }
-
+                // Row 1: [ Boy ] [ Girl ]
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Boy
+                    val isBoySelected = selectedGender == ProfileGender.MALE
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) ColorDustyTeal else ColorWarmCream)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isBoySelected) ColorDustyTeal else ColorWarmCream)
                             .border(
                                 BorderStroke(
-                                    1.2.dp,
-                                    if (isSelected) ColorDustyTeal else ColorBorderWarm
+                                    1.dp,
+                                    if (isBoySelected) ColorDustyTeal else ColorBorderWarm
                                 ),
-                                RoundedCornerShape(12.dp)
+                                RoundedCornerShape(10.dp)
                             )
-                            .clickable { selectedGender = gender }
-                            .padding(vertical = 10.dp, horizontal = 6.dp)
-                            .semantics { contentDescription = "Gender $label" }
-                            .testTag("child_gender_${gender.name.lowercase()}"),
+                            .clickable { selectedGender = ProfileGender.MALE }
+                            .padding(vertical = 7.dp, horizontal = 8.dp)
+                            .semantics { contentDescription = "Gender Boy" }
+                            .testTag("child_gender_male"),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = label,
+                            text = "Boy",
                             fontFamily = SoraFontFamily,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                            fontWeight = if (isBoySelected) FontWeight.Bold else FontWeight.SemiBold,
                             fontSize = 11.5.sp,
-                            color = if (isSelected) ColorWarmIvory else ColorDarkWarmText,
+                            color = if (isBoySelected) ColorWarmIvory else ColorDarkWarmText,
+                            maxLines = 1
+                        )
+                    }
+
+                    // Girl
+                    val isGirlSelected = selectedGender == ProfileGender.FEMALE
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isGirlSelected) ColorDustyTeal else ColorWarmCream)
+                            .border(
+                                BorderStroke(
+                                    1.dp,
+                                    if (isGirlSelected) ColorDustyTeal else ColorBorderWarm
+                                ),
+                                RoundedCornerShape(10.dp)
+                            )
+                            .clickable { selectedGender = ProfileGender.FEMALE }
+                            .padding(vertical = 7.dp, horizontal = 8.dp)
+                            .semantics { contentDescription = "Gender Girl" }
+                            .testTag("child_gender_female"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Girl",
+                            fontFamily = SoraFontFamily,
+                            fontWeight = if (isGirlSelected) FontWeight.Bold else FontWeight.SemiBold,
+                            fontSize = 11.5.sp,
+                            color = if (isGirlSelected) ColorWarmIvory else ColorDarkWarmText,
                             maxLines = 1
                         )
                     }
                 }
+
+                // Row 2: [ Prefer not to say ] (Full width, responsive)
+                val isPreferNotSelected = selectedGender == ProfileGender.PREFER_NOT_TO_SAY
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isPreferNotSelected) ColorDustyTeal else ColorWarmCream)
+                        .border(
+                            BorderStroke(
+                                1.dp,
+                                if (isPreferNotSelected) ColorDustyTeal else ColorBorderWarm
+                            ),
+                            RoundedCornerShape(10.dp)
+                        )
+                        .clickable { selectedGender = ProfileGender.PREFER_NOT_TO_SAY }
+                        .padding(vertical = 7.dp, horizontal = 12.dp)
+                        .semantics { contentDescription = "Gender Prefer not to say" }
+                        .testTag("child_gender_prefer_not_to_say"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Prefer not to say",
+                        fontFamily = SoraFontFamily,
+                        fontWeight = if (isPreferNotSelected) FontWeight.Bold else FontWeight.SemiBold,
+                        fontSize = 11.5.sp,
+                        color = if (isPreferNotSelected) ColorWarmIvory else ColorDarkWarmText,
+                        maxLines = 1
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(11.dp))
 
             // Field 3: "Who to remind" Dropdown (Approved Hub Members only)
             Text(
                 text = "WHO TO REMIND",
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 10.5.sp,
-                letterSpacing = 1.2.sp,
+                fontSize = 9.5.sp,
+                letterSpacing = 1.1.sp,
                 color = ColorWarmNeutral
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Box(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(RoundedCornerShape(11.dp))
                         .background(ColorWarmIvory)
-                        .border(BorderStroke(1.2.dp, ColorBorderWarm), RoundedCornerShape(14.dp))
+                        .border(BorderStroke(1.dp, ColorBorderWarm), RoundedCornerShape(11.dp))
                         .clickable(
                             role = Role.Button,
                             onClick = { isMemberDropdownOpen = true }
                         )
-                        .padding(horizontal = 14.dp, vertical = 11.dp)
+                        .padding(horizontal = 11.dp, vertical = 7.dp)
                         .testTag("child_who_to_remind_selector"),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -326,24 +391,24 @@ fun CreateChildProfileModal(
                     if (selectedReminderMember != null) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             ProfileAvatarView(
                                 avatarType = selectedReminderMember!!.avatarType,
-                                size = 28.dp
+                                size = 24.dp
                             )
                             Column {
                                 Text(
                                     text = selectedReminderMember!!.name,
                                     fontFamily = SoraFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp,
                                     color = ColorDarkWarmText
                                 )
                                 Text(
                                     text = if (selectedReminderMember!!.isCreator) "Hub Creator" else "Adult Member",
                                     fontFamily = SoraFontFamily,
-                                    fontSize = 10.sp,
+                                    fontSize = 9.sp,
                                     color = ColorWarmNeutral
                                 )
                             }
@@ -351,18 +416,18 @@ fun CreateChildProfileModal(
                     } else {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Person,
                                 contentDescription = null,
                                 tint = ColorWarmNeutral,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(17.dp)
                             )
                             Text(
                                 text = "Select adult member to remind",
                                 fontFamily = SoraFontFamily,
-                                fontSize = 13.5.sp,
+                                fontSize = 12.sp,
                                 color = ColorWarmNeutral
                             )
                         }
@@ -372,7 +437,7 @@ fun CreateChildProfileModal(
                         imageVector = Icons.Outlined.ArrowDropDown,
                         contentDescription = "Open dropdown",
                         tint = ColorDarkWarmText,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
@@ -380,14 +445,14 @@ fun CreateChildProfileModal(
                 DropdownMenu(
                     expanded = isMemberDropdownOpen,
                     onDismissRequest = { isMemberDropdownOpen = false },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(14.dp),
                     containerColor = ColorWarmIvory,
                     tonalElevation = 0.dp,
-                    shadowElevation = 6.dp,
-                    border = BorderStroke(1.2.dp, ColorBorderWarm),
+                    shadowElevation = 5.dp,
+                    border = BorderStroke(1.dp, ColorBorderWarm),
                     modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .clip(RoundedCornerShape(16.dp))
+                        .fillMaxWidth(0.88f)
+                        .clip(RoundedCornerShape(14.dp))
                 ) {
                     if (adultMembers.isEmpty()) {
                         DropdownMenuItem(
@@ -395,7 +460,7 @@ fun CreateChildProfileModal(
                                 Text(
                                     text = "No adult members found",
                                     fontFamily = SoraFontFamily,
-                                    fontSize = 13.sp,
+                                    fontSize = 12.sp,
                                     color = ColorWarmNeutral
                                 )
                             },
@@ -407,24 +472,24 @@ fun CreateChildProfileModal(
                                 text = {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         ProfileAvatarView(
                                             avatarType = member.avatarType,
-                                            size = 28.dp
+                                            size = 24.dp
                                         )
                                         Column {
                                             Text(
                                                 text = member.name,
                                                 fontFamily = SoraFontFamily,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 13.5.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 12.sp,
                                                 color = ColorDarkWarmText
                                             )
                                             Text(
                                                 text = if (member.isCreator) "Hub Creator" else "Adult Member",
                                                 fontFamily = SoraFontFamily,
-                                                fontSize = 10.sp,
+                                                fontSize = 9.sp,
                                                 color = ColorWarmNeutral
                                             )
                                         }
@@ -444,18 +509,18 @@ fun CreateChildProfileModal(
             // Validation or Server Error Message
             val activeError = validationError ?: errorMessage
             if (!activeError.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = activeError,
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
+                    fontSize = 11.5.sp,
                     color = Color(0xFFC85A54),
                     modifier = Modifier.testTag("child_modal_error_text")
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             // Action Button: "Create Child User"
             Button(
@@ -476,7 +541,7 @@ fun CreateChildProfileModal(
                     )
                 },
                 enabled = !isSubmitting,
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(13.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ColorWarmAmber,
                     contentColor = ColorDarkWarmText,
@@ -485,10 +550,10 @@ fun CreateChildProfileModal(
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(42.dp)
                     .shadow(
-                        elevation = 3.dp,
-                        shape = RoundedCornerShape(16.dp),
+                        elevation = 2.dp,
+                        shape = RoundedCornerShape(13.dp),
                         ambientColor = ColorAmbientShadow,
                         spotColor = ColorSpotShadow
                     )
@@ -501,13 +566,13 @@ fun CreateChildProfileModal(
                         text = "Create Child User",
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = 12.5.sp,
                         color = ColorDarkWarmText
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
         }
     }
 }

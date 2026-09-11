@@ -101,18 +101,18 @@ fun MedicationCard(
             .fillMaxWidth()
             .shadow(
                 elevation = if (medication.isTakenToday) 1.5.dp else 2.5.dp,
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
                 ambientColor = ColorAmbientShadow,
                 spotColor = ColorSpotShadow
             )
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(if (medication.isTakenToday) ColorPaleTealBg.copy(alpha = 0.6f) else ColorWarmIvory)
-            .border(BorderStroke(1.2.dp, cardBorderColor), RoundedCornerShape(18.dp))
+            .border(BorderStroke(1.2.dp, cardBorderColor), RoundedCornerShape(16.dp))
             .clickable(
                 role = Role.Button,
                 onClick = onCardClick
             )
-            .padding(14.dp)
+            .padding(12.dp)
             .testTag("medication_card_${medication.id}")
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -125,7 +125,7 @@ fun MedicationCard(
                 Row(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     // Optional uploaded medicine image or subtle icon
                     if (!medication.imageUri.isNullOrBlank()) {
@@ -137,26 +137,26 @@ fun MedicationCard(
                             contentDescription = "Photo of ${medication.name}",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .border(BorderStroke(1.dp, ColorBorderWarm), RoundedCornerShape(10.dp))
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(9.dp))
+                                .border(BorderStroke(1.dp, ColorBorderWarm), RoundedCornerShape(9.dp))
                                 .testTag("medication_image_${medication.id}")
                         )
                     } else {
                         // Small generic medication pill icon
                         Box(
                             modifier = Modifier
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(10.dp))
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(9.dp))
                                 .background(ColorDustyTeal.copy(alpha = 0.12f))
-                                .border(BorderStroke(1.dp, ColorDustyTeal.copy(alpha = 0.25f)), RoundedCornerShape(10.dp)),
+                                .border(BorderStroke(1.dp, ColorDustyTeal.copy(alpha = 0.25f)), RoundedCornerShape(9.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Medication,
                                 contentDescription = null,
                                 tint = ColorDustyTeal,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -167,8 +167,8 @@ fun MedicationCard(
                             text = medication.name,
                             fontFamily = SoraFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.5.sp,
-                            lineHeight = 18.sp,
+                            fontSize = 13.5.sp,
+                            lineHeight = 17.sp,
                             color = ColorDarkWarmText,
                             modifier = Modifier.testTag("medication_name_${medication.id}")
                         )
@@ -179,7 +179,7 @@ fun MedicationCard(
                             text = medication.dosage,
                             fontFamily = SoraFontFamily,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 11.5.sp,
+                            fontSize = 11.sp,
                             color = ColorTextMuted
                         )
                     }
@@ -191,14 +191,14 @@ fun MedicationCard(
                         IconButton(
                             onClick = { isMenuOpen = true },
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(28.dp)
                                 .testTag("medication_menu_button_${medication.id}")
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.MoreVert,
                                 contentDescription = "Medication options",
                                 tint = ColorTextMuted,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(17.dp)
                             )
                         }
 
@@ -222,13 +222,13 @@ fun MedicationCard(
                                             imageVector = Icons.Outlined.Edit,
                                             contentDescription = null,
                                             tint = ColorDarkWarmText,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(15.dp)
                                         )
                                         Text(
                                             text = "Edit medication",
                                             fontFamily = SoraFontFamily,
                                             fontWeight = FontWeight.SemiBold,
-                                            fontSize = 13.sp,
+                                            fontSize = 12.5.sp,
                                             color = ColorDarkWarmText
                                         )
                                     }
@@ -250,13 +250,13 @@ fun MedicationCard(
                                             imageVector = Icons.Outlined.DeleteOutline,
                                             contentDescription = null,
                                             tint = ColorDeleteRed,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(15.dp)
                                         )
                                         Text(
                                             text = "Delete medication",
                                             fontFamily = SoraFontFamily,
                                             fontWeight = FontWeight.SemiBold,
-                                            fontSize = 13.sp,
+                                            fontSize = 12.5.sp,
                                             color = ColorDeleteRed
                                         )
                                     }
@@ -274,22 +274,22 @@ fun MedicationCard(
 
             // Optional Notes
             if (!medication.notes.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = medication.notes,
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.Normal,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     color = ColorTextMuted.copy(alpha = 0.9f),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(7.dp))
                         .background(ColorBorderWarm.copy(alpha = 0.25f))
-                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                        .padding(horizontal = 7.dp, vertical = 4.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(9.dp))
 
             // Bottom Section: Recipient + Reminder Time on left, Mark As Taken on right
             Row(
@@ -298,7 +298,7 @@ fun MedicationCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // Left details: Recipient chip & Reminder Time
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     // Recipient: Profile icon + For [Name]
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -306,13 +306,13 @@ fun MedicationCard(
                     ) {
                         ProfileAvatarView(
                             avatarType = medication.recipientAvatarType,
-                            size = 18.dp
+                            size = 16.dp
                         )
                         Text(
                             text = "For ${medication.recipientName}",
                             fontFamily = SoraFontFamily,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             color = ColorDarkWarmText
                         )
                     }
@@ -326,13 +326,13 @@ fun MedicationCard(
                             imageVector = Icons.Outlined.AccessTime,
                             contentDescription = null,
                             tint = ColorTextMuted,
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(11.dp)
                         )
                         Text(
                             text = medication.reminderTime,
                             fontFamily = SoraFontFamily,
                             fontWeight = FontWeight.Normal,
-                            fontSize = 10.5.sp,
+                            fontSize = 10.sp,
                             color = ColorTextMuted
                         )
                     }
@@ -342,7 +342,7 @@ fun MedicationCard(
                 Box(
                     modifier = Modifier
                         .scale(if (isTakenPressed) 0.96f else 1.0f)
-                        .clip(RoundedCornerShape(9.dp))
+                        .clip(RoundedCornerShape(8.dp))
                         .background(
                             if (medication.isTakenToday) ColorDustyTeal else ColorDustyTeal.copy(alpha = 0.10f)
                         )
@@ -351,7 +351,7 @@ fun MedicationCard(
                                 1.dp,
                                 if (medication.isTakenToday) ColorDustyTeal else ColorDustyTeal.copy(alpha = 0.35f)
                             ),
-                            RoundedCornerShape(9.dp)
+                            RoundedCornerShape(8.dp)
                         )
                         .clickable(
                             interactionSource = takenButtonInteractionSource,
@@ -359,7 +359,7 @@ fun MedicationCard(
                             role = Role.Button,
                             onClick = onToggleTaken
                         )
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 7.dp, vertical = 3.5.dp)
                         .semantics {
                             contentDescription = if (medication.isTakenToday) "Taken, tap to undo" else "Mark as taken"
                         }
@@ -375,14 +375,14 @@ fun MedicationCard(
                                 imageVector = Icons.Outlined.Check,
                                 contentDescription = null,
                                 tint = ColorWarmIvory,
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(11.dp)
                             )
                             Column(horizontalAlignment = Alignment.Start) {
                                 Text(
                                     text = "Taken",
                                     fontFamily = SoraFontFamily,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 10.5.sp,
+                                    fontSize = 10.sp,
                                     color = ColorWarmIvory
                                 )
                                 if (!medication.takenAtTime.isNullOrBlank()) {
@@ -400,7 +400,7 @@ fun MedicationCard(
                                 text = "Mark as taken",
                                 fontFamily = SoraFontFamily,
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 10.5.sp,
+                                fontSize = 10.sp,
                                 color = ColorDustyTeal
                             )
                         }

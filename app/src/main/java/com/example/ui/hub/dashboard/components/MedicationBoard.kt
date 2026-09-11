@@ -91,7 +91,7 @@ fun MedicationBoard(
                         text = "MEDICATIONS",
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
+                        fontSize = 9.5.sp,
                         letterSpacing = 1.4.sp,
                         color = ColorDustyTeal
                     )
@@ -100,7 +100,7 @@ fun MedicationBoard(
                         text = "TODAY'S SCHEDULE",
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 15.sp,
+                        fontSize = 13.5.sp,
                         color = ColorDarkWarmText
                     )
                 }
@@ -108,29 +108,29 @@ fun MedicationBoard(
                 if (medications.isNotEmpty()) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(9.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .background(ColorWarmIvory)
-                            .border(BorderStroke(1.dp, ColorBorderWarm), RoundedCornerShape(9.dp))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                            .border(BorderStroke(1.dp, ColorBorderWarm), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 7.dp, vertical = 2.5.dp)
                     ) {
                         Text(
                             text = "${medications.count { it.isTakenToday }}/${medications.size} Done",
                             fontFamily = SoraFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp,
+                            fontSize = 9.5.sp,
                             color = if (medications.all { it.isTakenToday }) ColorDustyTeal else ColorTextMuted
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Content: Medication Cards list or Friendly Empty State
             if (medications.isNotEmpty()) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     medications.forEach { med ->
                         val isCreator = med.createdByUid.isNotBlank() && (
@@ -196,54 +196,54 @@ private fun EmptyMedicationState(
             text = "Your family's schedule\nstarts here.",
             fontFamily = SoraFontFamily,
             fontWeight = FontWeight.Medium,
-            fontSize = 15.sp,
-            lineHeight = 21.sp,
+            fontSize = 13.5.sp,
+            lineHeight = 19.sp,
             color = ColorDarkWarmText,
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         Text(
             text = "Add a medication to\nget everyone on track.",
             fontFamily = SoraFontFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 12.5.sp,
-            lineHeight = 17.sp,
+            fontSize = 11.5.sp,
+            lineHeight = 16.sp,
             color = ColorTextMuted,
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // In-card + Add Medication Button
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .background(ColorWarmAmber)
                 .clickable(
                     role = Role.Button,
                     onClick = onAddMedicationClick
                 )
-                .padding(horizontal = 16.dp, vertical = 9.dp)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
                 .testTag("empty_state_add_medication_button"),
             contentAlignment = Alignment.Center
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Add,
                     contentDescription = null,
                     tint = ColorWarmIvory,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(15.dp)
                 )
                 Text(
                     text = "Add Medication",
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.5.sp,
+                    fontSize = 11.5.sp,
                     color = ColorWarmIvory
                 )
             }
