@@ -39,14 +39,25 @@ object FamilyHubRepository {
 
     // Local cached hubs for offline support and seamless testing
     private val localHubs = mutableMapOf<String, FamilyHubData>()
+    // Local hub members mapped by hubId -> set of user IDs
+    private val localHubMembers = mutableMapOf<String, MutableSet<String>>()
     // Local join requests mapped by hubId -> (requestId -> JoinRequestItemData)
     private val localJoinRequests = mutableMapOf<String, MutableMap<String, JoinRequestItemData>>()
     // Local listeners for request status changes: requestId -> list of callbacks
     private val localRequestListeners = mutableMapOf<String, MutableList<(JoinRequestStatus) -> Unit>>()
 
-    fun registerLocalHub(hub: FamilyHubData) {
+    fun registerLocalHub(hub: FamilyHubData, memberUserIds: List<String> = emptyList()) {
         localHubs[hub.hiveCode.uppercase()] = hub
         localHubs[hub.hubId] = hub
+        val membersSet = localHubMembers.getOrPut(hub.hubId) { mutableSetOf() }
+        hub.createdByUid?.let { membersSet.add(it) }
+        membersSet.addAll(memberUserIds)
+    }
+
+    fun isLocalHubMember(hubId: String, userId: String): Boolean {
+        val hub = localHubs[hubId]
+        if (hub != null && hub.createdByUid == userId) return true
+        return localHubMembers[hubId]?.contains(userId) == true
     }
 
     fun notifyLocalRequestStatus(requestId: String, status: JoinRequestStatus) {

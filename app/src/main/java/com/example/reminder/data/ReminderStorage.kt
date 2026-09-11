@@ -148,4 +148,11 @@ object ReminderStorage {
         val key = "${occurrenceId}_${stage.name}"
         getPrefs(context).edit().putBoolean("${KEY_NOTIFIED_STAGES}_$key", true).apply()
     }
+
+    /**
+     * Clears all stored occurrences and notification records (useful for test resets).
+     */
+    fun clearAll(context: Context) {
+        getPrefs(context).edit().clear().apply()
+    }
 }

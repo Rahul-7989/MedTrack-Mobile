@@ -148,10 +148,9 @@ object MedicationReminderScheduler {
     }
 
     /**
-     * Schedules all 3 stages of alarms for a medication occurrence:
-     * 1. Initial reminder at scheduled time
-     * 2. Missed dose reminder at scheduled time + missed interval
-     * 3. Family escalation at scheduled time + family interval
+     * Schedules alarms for a medication occurrence based on audience eligibility:
+     * - Assigned recipient / responsible adult: Initial, Missed, and Personal Family Escalation.
+     * - Family hub members: Family Escalation reminder only.
      */
     fun scheduleOccurrenceAlarms(context: Context, occurrence: MedicationOccurrence) {
         if (occurrence.isTaken) {
@@ -160,20 +159,23 @@ object MedicationReminderScheduler {
         }
 
         val now = System.currentTimeMillis()
+        val currentUserId = MedicationReminderReceiver.resolveCurrentUserId()
+        val targetRecipientId = MedicationReminderReceiver.resolveTargetPersonalRecipientId(occurrence)
+        val isTargetRecipient = (currentUserId.isNotBlank() && currentUserId == targetRecipientId)
 
-        // 1. Initial Reminder
-        if (occurrence.scheduledTimeMillis > now && !ReminderStorage.hasStageBeenNotified(context, occurrence.occurrenceId, ReminderStage.INITIAL)) {
+        // 1. Initial Reminder (strictly for target recipient)
+        if (isTargetRecipient && occurrence.scheduledTimeMillis > now && !ReminderStorage.hasStageBeenNotified(context, occurrence.occurrenceId, ReminderStage.INITIAL)) {
             val initialIntent = createAlarmPendingIntent(context, occurrence, ReminderStage.INITIAL)
             setExactAlarm(context, occurrence.scheduledTimeMillis, initialIntent)
         }
 
-        // 2. Missed Dosage Reminder
-        if (occurrence.missedReminderMillis > now && !ReminderStorage.hasStageBeenNotified(context, occurrence.occurrenceId, ReminderStage.MISSED)) {
+        // 2. Missed Dosage Reminder (strictly for target recipient)
+        if (isTargetRecipient && occurrence.missedReminderMillis > now && !ReminderStorage.hasStageBeenNotified(context, occurrence.occurrenceId, ReminderStage.MISSED)) {
             val missedIntent = createAlarmPendingIntent(context, occurrence, ReminderStage.MISSED)
             setExactAlarm(context, occurrence.missedReminderMillis, missedIntent)
         }
 
-        // 3. Family Escalation
+        // 3. Family Escalation (target recipient receives personal alert, family members receive broad hub alert)
         if (occurrence.familyEscalationMillis > now && !ReminderStorage.hasStageBeenNotified(context, occurrence.occurrenceId, ReminderStage.FAMILY_ESCALATION)) {
             val familyIntent = createAlarmPendingIntent(context, occurrence, ReminderStage.FAMILY_ESCALATION)
             setExactAlarm(context, occurrence.familyEscalationMillis, familyIntent)

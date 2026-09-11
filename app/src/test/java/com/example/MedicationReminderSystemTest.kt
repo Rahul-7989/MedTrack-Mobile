@@ -7,6 +7,7 @@ import com.example.reminder.data.ReminderStorage
 import com.example.reminder.model.MedicationOccurrence
 import com.example.reminder.model.ReminderStage
 import com.example.reminder.notification.MedicationNotificationHelper
+import com.example.reminder.receiver.MedicationReminderReceiver
 import com.example.reminder.scheduler.MedicationReminderScheduler
 import com.example.ui.hub.dashboard.model.MedicationItem
 import com.example.ui.hub.dashboard.model.ReminderCycle
@@ -221,5 +222,398 @@ class MedicationReminderSystemTest {
         val cal = Calendar.getInstance()
         val isScheduled = MedicationReminderScheduler.isMedicationScheduledForDate(med, cal)
         assertTrue(isScheduled)
+    }
+
+    @Test
+    fun testScenario1And2And3_MedicationCreatedByRahulForAnanya() {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val shadowManager = shadowOf(notificationManager)
+
+        // Setup Hub A with members Rahul, Ananya, Arjun, Priya
+        val hubA = com.example.ui.hub.model.FamilyHubData(
+            hubId = "hub_A",
+            name = "Rahul's Fam",
+            hiveCode = "FAM123",
+            createdByUid = "rahul_uid"
+        )
+        com.example.ui.hub.data.FamilyHubRepository.registerLocalHub(hubA, listOf("rahul_uid", "ananya_uid", "arjun_uid", "priya_uid"))
+
+        val intent = android.content.Intent(MedicationReminderScheduler.ACTION_TRIGGER_REMINDER).apply {
+            putExtra(MedicationReminderScheduler.EXTRA_HUB_ID, "hub_A")
+            putExtra(MedicationReminderScheduler.EXTRA_MEDICATION_ID, "med_cetirizine")
+            putExtra(MedicationReminderScheduler.EXTRA_OCCURRENCE_ID, "occ_cetirizine_1")
+            putExtra(MedicationReminderScheduler.EXTRA_DATE_KEY, "2026-09-11")
+            putExtra(MedicationReminderScheduler.EXTRA_MED_NAME, "Cetirizine")
+            putExtra(MedicationReminderScheduler.EXTRA_DOSAGE, "1 tablet")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_ID, "ananya_uid")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_NAME, "Ananya")
+            putExtra(MedicationReminderScheduler.EXTRA_IS_CHILD, false)
+        }
+
+        val receiver = com.example.reminder.receiver.MedicationReminderReceiver()
+
+        // TEST 1: At Initial reminder time, check Ananya's device vs Rahul's device vs Arjun's device
+        intent.putExtra(MedicationReminderScheduler.EXTRA_STAGE, ReminderStage.INITIAL.name)
+
+        // On Rahul's device (creator, but NOT recipient):
+        MedicationReminderReceiver.testCurrentUserIdOverride = "rahul_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+        assertEquals(0, shadowManager.allNotifications.size)
+
+        // On Arjun's device (hub member, but NOT recipient):
+        MedicationReminderReceiver.testCurrentUserIdOverride = "arjun_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+        assertEquals(0, shadowManager.allNotifications.size)
+
+        // On Ananya's device (assigned recipient):
+        MedicationReminderReceiver.testCurrentUserIdOverride = "ananya_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+        assertEquals(1, shadowManager.allNotifications.size)
+        val ananyaNotif = shadowOf(shadowManager.allNotifications.last())
+        assertEquals("💊 Time for your medicine", ananyaNotif.contentTitle)
+        assertTrue(ananyaNotif.contentText.toString().contains("It’s time to take your Cetirizine."))
+
+        // TEST 2: At Missed-dose time, check Ananya's device vs others
+        intent.putExtra(MedicationReminderScheduler.EXTRA_STAGE, ReminderStage.MISSED.name)
+
+        // Rahul's device receives NOTHING
+        MedicationReminderReceiver.testCurrentUserIdOverride = "rahul_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+        assertEquals(0, shadowManager.allNotifications.size)
+
+        // Ananya's device receives Missed Dose alert
+        MedicationReminderReceiver.testCurrentUserIdOverride = "ananya_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+        assertEquals(1, shadowManager.allNotifications.size)
+        val ananyaMissed = shadowOf(shadowManager.allNotifications.last())
+        assertEquals("⏰ Medicine reminder", ananyaMissed.contentTitle)
+        assertTrue(ananyaMissed.contentText.toString().contains("Have you taken your Cetirizine?"))
+
+        // TEST 3: At Family Escalation:
+        intent.putExtra(MedicationReminderScheduler.EXTRA_STAGE, ReminderStage.FAMILY_ESCALATION.name)
+
+        // Ananya receives personal "🔔 Your family has been notified"
+        MedicationReminderReceiver.testCurrentUserIdOverride = "ananya_uid"
+        notificationManager.cancelAll()
+        ReminderStorage.clearAll(context)
+        receiver.onReceive(context, intent)
+        assertEquals(1, shadowManager.allNotifications.size)
+        val ananyaPersonal = shadowOf(shadowManager.allNotifications.last())
+        assertEquals("🔔 Your family has been notified", ananyaPersonal.contentTitle)
+        assertTrue(ananyaPersonal.contentText.toString().contains("Your Cetirizine hasn’t been marked as taken yet."))
+
+        // Rahul (hub member on his separate device) receives broad "👨👩👧 Family reminder", NOT personal notification
+        MedicationReminderReceiver.testCurrentUserIdOverride = "rahul_uid"
+        notificationManager.cancelAll()
+        ReminderStorage.clearAll(context)
+        receiver.onReceive(context, intent)
+        assertEquals(1, shadowManager.allNotifications.size)
+        val rahulEscalation = shadowOf(shadowManager.allNotifications.last())
+        assertEquals("👨👩👧 Family reminder", rahulEscalation.contentTitle)
+        assertTrue(rahulEscalation.contentText.toString().contains("Ananya hasn’t marked their Cetirizine as taken yet."))
+
+        // Clean up
+        MedicationReminderReceiver.testCurrentUserIdOverride = null
+    }
+
+    @Test
+    fun testScenario4_MedicationCreatedByAnanyaForRahul() {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val shadowManager = shadowOf(notificationManager)
+
+        val hubA = com.example.ui.hub.model.FamilyHubData(
+            hubId = "hub_A",
+            name = "Rahul's Fam",
+            hiveCode = "FAM123",
+            createdByUid = "ananya_uid"
+        )
+        com.example.ui.hub.data.FamilyHubRepository.registerLocalHub(hubA, listOf("rahul_uid", "ananya_uid"))
+
+        val intent = android.content.Intent(MedicationReminderScheduler.ACTION_TRIGGER_REMINDER).apply {
+            putExtra(MedicationReminderScheduler.EXTRA_HUB_ID, "hub_A")
+            putExtra(MedicationReminderScheduler.EXTRA_MEDICATION_ID, "med_rahul_dose")
+            putExtra(MedicationReminderScheduler.EXTRA_OCCURRENCE_ID, "occ_rahul_1")
+            putExtra(MedicationReminderScheduler.EXTRA_DATE_KEY, "2026-09-11")
+            putExtra(MedicationReminderScheduler.EXTRA_MED_NAME, "Cetirizine")
+            putExtra(MedicationReminderScheduler.EXTRA_DOSAGE, "1 tablet")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_ID, "rahul_uid")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_NAME, "Rahul")
+            putExtra(MedicationReminderScheduler.EXTRA_IS_CHILD, false)
+        }
+
+        val receiver = com.example.reminder.receiver.MedicationReminderReceiver()
+
+        // 1. Initial reminder: Rahul receives, Ananya does NOT
+        intent.putExtra(MedicationReminderScheduler.EXTRA_STAGE, ReminderStage.INITIAL.name)
+        MedicationReminderReceiver.testCurrentUserIdOverride = "ananya_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+        assertEquals(0, shadowManager.allNotifications.size)
+
+        MedicationReminderReceiver.testCurrentUserIdOverride = "rahul_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+        assertEquals(1, shadowManager.allNotifications.size)
+        assertEquals("💊 Time for your medicine", shadowOf(shadowManager.allNotifications.last()).contentTitle)
+
+        // 2. Missed dose: Rahul receives, Ananya does NOT
+        intent.putExtra(MedicationReminderScheduler.EXTRA_STAGE, ReminderStage.MISSED.name)
+        MedicationReminderReceiver.testCurrentUserIdOverride = "ananya_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+        assertEquals(0, shadowManager.allNotifications.size)
+
+        MedicationReminderReceiver.testCurrentUserIdOverride = "rahul_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+        assertEquals(1, shadowManager.allNotifications.size)
+        assertEquals("⏰ Medicine reminder", shadowOf(shadowManager.allNotifications.last()).contentTitle)
+
+        // 3. Family escalation: Rahul receives personal alert, Ananya receives family alert
+        intent.putExtra(MedicationReminderScheduler.EXTRA_STAGE, ReminderStage.FAMILY_ESCALATION.name)
+        MedicationReminderReceiver.testCurrentUserIdOverride = "rahul_uid"
+        notificationManager.cancelAll()
+        ReminderStorage.clearAll(context)
+        receiver.onReceive(context, intent)
+        assertEquals(1, shadowManager.allNotifications.size)
+        assertEquals("🔔 Your family has been notified", shadowOf(shadowManager.allNotifications.last()).contentTitle)
+
+        MedicationReminderReceiver.testCurrentUserIdOverride = "ananya_uid"
+        notificationManager.cancelAll()
+        ReminderStorage.clearAll(context)
+        receiver.onReceive(context, intent)
+        assertEquals(1, shadowManager.allNotifications.size)
+        assertEquals("👨👩👧 Family reminder", shadowOf(shadowManager.allNotifications.last()).contentTitle)
+
+        MedicationReminderReceiver.testCurrentUserIdOverride = null
+    }
+
+    @Test
+    fun testScenario5And6_ChildMedicationRecipientRouting() {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val shadowManager = shadowOf(notificationManager)
+
+        val hubA = com.example.ui.hub.model.FamilyHubData(
+            hubId = "hub_A",
+            name = "Family Hub",
+            hiveCode = "FAM999",
+            createdByUid = "rahul_uid"
+        )
+        com.example.ui.hub.data.FamilyHubRepository.registerLocalHub(hubA, listOf("rahul_uid", "ananya_uid"))
+
+        // Child medication with responsible member = Rahul
+        val intentChildRahul = android.content.Intent(MedicationReminderScheduler.ACTION_TRIGGER_REMINDER).apply {
+            putExtra(MedicationReminderScheduler.EXTRA_HUB_ID, "hub_A")
+            putExtra(MedicationReminderScheduler.EXTRA_MEDICATION_ID, "med_aarav_syrup")
+            putExtra(MedicationReminderScheduler.EXTRA_OCCURRENCE_ID, "occ_aarav_1")
+            putExtra(MedicationReminderScheduler.EXTRA_DATE_KEY, "2026-09-11")
+            putExtra(MedicationReminderScheduler.EXTRA_MED_NAME, "Cetirizine")
+            putExtra(MedicationReminderScheduler.EXTRA_DOSAGE, "1 tablet")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_ID, "aarav_child_id")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_NAME, "Aarav")
+            putExtra(MedicationReminderScheduler.EXTRA_RESPONSIBLE_UID, "rahul_uid")
+            putExtra(MedicationReminderScheduler.EXTRA_IS_CHILD, true)
+            putExtra(MedicationReminderScheduler.EXTRA_STAGE, ReminderStage.INITIAL.name)
+        }
+
+        val receiver = com.example.reminder.receiver.MedicationReminderReceiver()
+
+        // TEST 5: Responsible member = Rahul
+        // Initial reminder -> ONLY Rahul receives
+        MedicationReminderReceiver.testCurrentUserIdOverride = "ananya_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intentChildRahul)
+        assertEquals(0, shadowManager.allNotifications.size)
+
+        MedicationReminderReceiver.testCurrentUserIdOverride = "rahul_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intentChildRahul)
+        assertEquals(1, shadowManager.allNotifications.size)
+        assertEquals("💊 Aarav’s medicine time", shadowOf(shadowManager.allNotifications.last()).contentTitle)
+
+        // TEST 6: Child medication with responsible member = Ananya
+        val intentChildAnanya = android.content.Intent(MedicationReminderScheduler.ACTION_TRIGGER_REMINDER).apply {
+            putExtra(MedicationReminderScheduler.EXTRA_HUB_ID, "hub_A")
+            putExtra(MedicationReminderScheduler.EXTRA_MEDICATION_ID, "med_aarav_syrup_2")
+            putExtra(MedicationReminderScheduler.EXTRA_OCCURRENCE_ID, "occ_aarav_2")
+            putExtra(MedicationReminderScheduler.EXTRA_DATE_KEY, "2026-09-11")
+            putExtra(MedicationReminderScheduler.EXTRA_MED_NAME, "Cetirizine")
+            putExtra(MedicationReminderScheduler.EXTRA_DOSAGE, "1 tablet")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_ID, "aarav_child_id")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_NAME, "Aarav")
+            putExtra(MedicationReminderScheduler.EXTRA_RESPONSIBLE_UID, "ananya_uid")
+            putExtra(MedicationReminderScheduler.EXTRA_IS_CHILD, true)
+            putExtra(MedicationReminderScheduler.EXTRA_STAGE, ReminderStage.INITIAL.name)
+        }
+
+        // Rahul must NOT receive child notifications when Ananya is responsible member
+        MedicationReminderReceiver.testCurrentUserIdOverride = "rahul_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intentChildAnanya)
+        assertEquals(0, shadowManager.allNotifications.size)
+
+        MedicationReminderReceiver.testCurrentUserIdOverride = "ananya_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intentChildAnanya)
+        assertEquals(1, shadowManager.allNotifications.size)
+        assertEquals("💊 Aarav’s medicine time", shadowOf(shadowManager.allNotifications.last()).contentTitle)
+
+        MedicationReminderReceiver.testCurrentUserIdOverride = null
+    }
+
+    @Test
+    fun testScenario7_MultipleHubsSeparation() {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val shadowManager = shadowOf(notificationManager)
+
+        // Hub A has Rahul and Ananya. Hub B has Vikram and Sneha.
+        val hubA = com.example.ui.hub.model.FamilyHubData(
+            hubId = "hub_A",
+            name = "Hub A",
+            hiveCode = "HUBAAA",
+            createdByUid = "rahul_uid"
+        )
+        val hubB = com.example.ui.hub.model.FamilyHubData(
+            hubId = "hub_B",
+            name = "Hub B",
+            hiveCode = "HUBBBB",
+            createdByUid = "vikram_uid"
+        )
+        com.example.ui.hub.data.FamilyHubRepository.registerLocalHub(hubA, listOf("rahul_uid", "ananya_uid"))
+        com.example.ui.hub.data.FamilyHubRepository.registerLocalHub(hubB, listOf("vikram_uid", "sneha_uid"))
+
+        // Medication belongs to Hub A
+        val intent = android.content.Intent(MedicationReminderScheduler.ACTION_TRIGGER_REMINDER).apply {
+            putExtra(MedicationReminderScheduler.EXTRA_HUB_ID, "hub_A")
+            putExtra(MedicationReminderScheduler.EXTRA_MEDICATION_ID, "med_hub_a")
+            putExtra(MedicationReminderScheduler.EXTRA_OCCURRENCE_ID, "occ_hub_a")
+            putExtra(MedicationReminderScheduler.EXTRA_DATE_KEY, "2026-09-11")
+            putExtra(MedicationReminderScheduler.EXTRA_MED_NAME, "Cetirizine")
+            putExtra(MedicationReminderScheduler.EXTRA_DOSAGE, "1 tablet")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_ID, "rahul_uid")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_NAME, "Rahul")
+            putExtra(MedicationReminderScheduler.EXTRA_IS_CHILD, false)
+            putExtra(MedicationReminderScheduler.EXTRA_STAGE, ReminderStage.FAMILY_ESCALATION.name)
+        }
+
+        val receiver = com.example.reminder.receiver.MedicationReminderReceiver()
+
+        // Vikram is in Hub B, NOT Hub A -> Vikram receives NOTHING
+        MedicationReminderReceiver.testCurrentUserIdOverride = "vikram_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+        assertEquals(0, shadowManager.allNotifications.size)
+
+        // Ananya is in Hub A -> Ananya receives family reminder
+        MedicationReminderReceiver.testCurrentUserIdOverride = "ananya_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+        assertEquals(1, shadowManager.allNotifications.size)
+        assertEquals("👨👩👧 Family reminder", shadowOf(shadowManager.allNotifications.last()).contentTitle)
+
+        MedicationReminderReceiver.testCurrentUserIdOverride = null
+    }
+
+    @Test
+    fun testScenario8And9_MultipleDevicesAndCreatorExclusion() {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val shadowManager = shadowOf(notificationManager)
+
+        val hubA = com.example.ui.hub.model.FamilyHubData(
+            hubId = "hub_A",
+            name = "Hub A",
+            hiveCode = "HUBAAA",
+            createdByUid = "creator_uid"
+        )
+        com.example.ui.hub.data.FamilyHubRepository.registerLocalHub(hubA, listOf("creator_uid", "rahul_uid"))
+
+        val intent = android.content.Intent(MedicationReminderScheduler.ACTION_TRIGGER_REMINDER).apply {
+            putExtra(MedicationReminderScheduler.EXTRA_HUB_ID, "hub_A")
+            putExtra(MedicationReminderScheduler.EXTRA_MEDICATION_ID, "med_test")
+            putExtra(MedicationReminderScheduler.EXTRA_OCCURRENCE_ID, "occ_test_devices")
+            putExtra(MedicationReminderScheduler.EXTRA_DATE_KEY, "2026-09-11")
+            putExtra(MedicationReminderScheduler.EXTRA_MED_NAME, "Cetirizine")
+            putExtra(MedicationReminderScheduler.EXTRA_DOSAGE, "1 tablet")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_ID, "rahul_uid")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_NAME, "Rahul")
+            putExtra(MedicationReminderScheduler.EXTRA_IS_CHILD, false)
+            putExtra(MedicationReminderScheduler.EXTRA_STAGE, ReminderStage.INITIAL.name)
+        }
+
+        val receiver = com.example.reminder.receiver.MedicationReminderReceiver()
+
+        // Creator receives NOTHING
+        MedicationReminderReceiver.testCurrentUserIdOverride = "creator_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+        assertEquals(0, shadowManager.allNotifications.size)
+
+        // Rahul's Phone (logged in as rahul_uid) receives notification
+        MedicationReminderReceiver.testCurrentUserIdOverride = "rahul_uid"
+        notificationManager.cancelAll()
+        ReminderStorage.clearAll(context)
+        receiver.onReceive(context, intent)
+        assertEquals(1, shadowManager.allNotifications.size)
+
+        // Rahul's Tablet (also logged in as rahul_uid) receives notification
+        MedicationReminderReceiver.testCurrentUserIdOverride = "rahul_uid"
+        notificationManager.cancelAll()
+        ReminderStorage.clearAll(context)
+        receiver.onReceive(context, intent)
+        assertEquals(1, shadowManager.allNotifications.size)
+
+        MedicationReminderReceiver.testCurrentUserIdOverride = null
+    }
+
+    @Test
+    fun testScenario10_MarkAsTakenSuppressesSubsequentNotifications() {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val shadowManager = shadowOf(notificationManager)
+
+        val occurrence = MedicationOccurrence(
+            occurrenceId = "med_taken_test_2026-09-11",
+            medicationId = "med_taken_test",
+            hubId = "hub_A",
+            dateKey = "2026-09-11",
+            medicationName = "Cetirizine",
+            dosage = "1 tablet",
+            recipientId = "rahul_uid",
+            recipientName = "Rahul",
+            isChildRecipient = false,
+            scheduledTimeMillis = System.currentTimeMillis() - 10000,
+            missedReminderMillis = System.currentTimeMillis() + 300000,
+            familyEscalationMillis = System.currentTimeMillis() + 900000,
+            isTaken = true,
+            takenAtFormatted = "9:00 AM"
+        )
+        ReminderStorage.saveOccurrences(context, listOf(occurrence))
+
+        val intent = android.content.Intent(MedicationReminderScheduler.ACTION_TRIGGER_REMINDER).apply {
+            putExtra(MedicationReminderScheduler.EXTRA_HUB_ID, "hub_A")
+            putExtra(MedicationReminderScheduler.EXTRA_MEDICATION_ID, "med_taken_test")
+            putExtra(MedicationReminderScheduler.EXTRA_OCCURRENCE_ID, "med_taken_test_2026-09-11")
+            putExtra(MedicationReminderScheduler.EXTRA_DATE_KEY, "2026-09-11")
+            putExtra(MedicationReminderScheduler.EXTRA_MED_NAME, "Cetirizine")
+            putExtra(MedicationReminderScheduler.EXTRA_DOSAGE, "1 tablet")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_ID, "rahul_uid")
+            putExtra(MedicationReminderScheduler.EXTRA_RECIPIENT_NAME, "Rahul")
+            putExtra(MedicationReminderScheduler.EXTRA_IS_CHILD, false)
+            putExtra(MedicationReminderScheduler.EXTRA_STAGE, ReminderStage.MISSED.name)
+        }
+
+        val receiver = com.example.reminder.receiver.MedicationReminderReceiver()
+        MedicationReminderReceiver.testCurrentUserIdOverride = "rahul_uid"
+        notificationManager.cancelAll()
+        receiver.onReceive(context, intent)
+
+        // Because medication is marked taken, 0 notifications should be posted
+        assertEquals(0, shadowManager.allNotifications.size)
+
+        MedicationReminderReceiver.testCurrentUserIdOverride = null
     }
 }

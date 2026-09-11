@@ -10,12 +10,13 @@ import com.example.reminder.model.MedicationOccurrence
 import com.example.reminder.model.ReminderStage
 import com.example.reminder.notification.MedicationNotificationHelper
 import com.example.reminder.scheduler.MedicationReminderScheduler
-import com.example.ui.hub.dashboard.model.HubMember
-import com.example.ui.profilesetup.model.ProfileAvatarType
+import com.example.ui.hub.dashboard.data.HubDashboardRepository
+import com.example.ui.hub.data.FamilyHubRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 
 /**
@@ -24,18 +25,121 @@ import kotlinx.coroutines.tasks.await
  * Responsibilities:
  * - Authoritatively queries Firebase Firestore to check if medication was already marked as taken.
  * - Suppresses missed dosage and family escalation if the medication is taken.
- * - Renders dynamic Android notifications for adults and child dependents with "Mark as taken" actions.
- * - Dispatches family escalation alerts strictly to approved members of the specific hub.
+ * - Strictly enforces recipient targeting by User ID:
+ *   * Initial & Missed-dose reminders ONLY go to the assigned recipient ("For whom?" / "Who to remind").
+ *   * Personal "Family has been notified" alert ONLY goes to the assigned recipient.
+ *   * Family reminder alert at escalation ONLY goes to approved members of the specific hub.
  */
 class MedicationReminderReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "MedReminderReceiver"
+
+        /**
+         * Test override hook for deterministic testing of multi-user recipient flows.
+         */
+        @Volatile
+        var testCurrentUserIdOverride: String? = null
+
+        /**
+         * Resolves the current logged in user ID from Firebase Auth or local session.
+         */
+        fun resolveCurrentUserId(): String {
+            testCurrentUserIdOverride?.let { return it }
+            val authUid = FirebaseAuthService.Instance.currentUser?.uid
+            if (!authUid.isNullOrBlank()) return authUid
+            val directAuthUid = try {
+                com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            } catch (_: Exception) {
+                null
+            }
+            if (!directAuthUid.isNullOrBlank()) return directAuthUid
+            return HubDashboardRepository.getCurrentUserId()
+        }
+
+        /**
+         * Resolves the authoritative target personal recipient user ID.
+         * For adult: medication.recipientId ("For whom?")
+         * For child: medication.reminderResponsibleUid ("Who to remind" responsible member)
+         */
+        fun resolveTargetPersonalRecipientId(occurrence: MedicationOccurrence): String? {
+            return if (occurrence.isChildRecipient) {
+                occurrence.reminderResponsibleUid?.trim()?.ifBlank { null }
+                    ?: occurrence.recipientId.trim().ifBlank { null }
+            } else {
+                occurrence.recipientId.trim().ifBlank { null }
+            }
+        }
+
+        /**
+         * Checks whether a given user is an approved member of the specific family hub.
+         */
+        suspend fun isUserMemberOfHub(hubId: String, userId: String): Boolean {
+            if (userId.isBlank() || hubId.isBlank()) return false
+
+            // Check FamilyHubRepository local cache
+            if (FamilyHubRepository.isLocalHubMember(hubId, userId)) {
+                return true
+            }
+
+            // Check current active hub in repository
+            val activeHub = FamilyHubRepository.currentHub.value
+            if (activeHub != null && activeHub.hubId == hubId) {
+                if (activeHub.createdByUid == userId) {
+                    return true
+                }
+            }
+
+            // Check dashboard members state
+            if (HubDashboardRepository.hubMembers.value.any { it.id == userId }) {
+                return true
+            }
+
+            if (userId == "current_user_local") return true
+
+            // Authoritative check via Firestore
+            return try {
+                val firestore = FirebaseFirestore.getInstance()
+                val memberDoc = firestore.collection("family_hubs")
+                    .document(hubId)
+                    .collection("members")
+                    .document(userId)
+                    .get()
+                    .await()
+                if (memberDoc != null && memberDoc.exists()) {
+                    return true
+                }
+                val hubDoc = firestore.collection("family_hubs").document(hubId).get().await()
+                hubDoc?.getString("createdByUid") == userId
+            } catch (e: Exception) {
+                Log.w(TAG, "Error checking hub membership for $userId in $hubId", e)
+                false
+            }
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != MedicationReminderScheduler.ACTION_TRIGGER_REMINDER) return
 
+        if (testCurrentUserIdOverride != null) {
+            runBlocking {
+                handleReminder(context, intent)
+            }
+            return
+        }
+
+        val pendingResult = try { goAsync() } catch (_: Exception) { null }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                handleReminder(context, intent)
+            } finally {
+                pendingResult?.finish()
+            }
+        }
+    }
+
+    suspend fun handleReminder(context: Context, intent: Intent) {
         val hubId = intent.getStringExtra(MedicationReminderScheduler.EXTRA_HUB_ID) ?: return
         val medicationId = intent.getStringExtra(MedicationReminderScheduler.EXTRA_MEDICATION_ID) ?: return
         val occurrenceId = intent.getStringExtra(MedicationReminderScheduler.EXTRA_OCCURRENCE_ID) ?: "${medicationId}_${MedicationReminderScheduler.getTodayDateKey()}"
@@ -54,86 +158,110 @@ class MedicationReminderReceiver : BroadcastReceiver() {
         val responsibleUid = intent.getStringExtra(MedicationReminderScheduler.EXTRA_RESPONSIBLE_UID)
         val isChild = intent.getBooleanExtra(MedicationReminderScheduler.EXTRA_IS_CHILD, false)
 
-        val pendingResult = goAsync()
+        try {
+            // 1. Check idempotency: avoid duplicate notification dispatch
+            if (ReminderStorage.hasStageBeenNotified(context, occurrenceId, stage)) {
+                Log.d(TAG, "Stage $stage already notified for $occurrenceId, skipping.")
+                return
+            }
 
-        CoroutineScope(Dispatchers.IO).launch {
+            // 2. Authoritative check from Firestore: Is this medication already taken?
+            var isTaken = false
             try {
-                // 1. Check idempotency: avoid duplicate notification dispatch
-                if (ReminderStorage.hasStageBeenNotified(context, occurrenceId, stage)) {
-                    Log.d(TAG, "Stage $stage already notified for $occurrenceId, skipping.")
-                    return@launch
-                }
+                val firestore = FirebaseFirestore.getInstance()
+                val medDoc = firestore.collection("family_hubs")
+                    .document(hubId)
+                    .collection("medications")
+                    .document(medicationId)
+                    .get()
+                    .await()
 
-                // 2. Authoritative check from Firestore: Is this medication already taken?
-                var isTaken = false
-                try {
-                    val firestore = FirebaseFirestore.getInstance()
-                    val medDoc = firestore.collection("family_hubs")
-                        .document(hubId)
-                        .collection("medications")
-                        .document(medicationId)
-                        .get()
-                        .await()
-
-                    if (medDoc != null && medDoc.exists()) {
-                        isTaken = medDoc.getBoolean("isTakenToday") ?: false
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Could not fetch Firestore state, falling back to local store", e)
-                    val localOcc = ReminderStorage.getOccurrence(context, medicationId, dateKey)
-                    isTaken = localOcc?.isTaken ?: false
-                }
-
-                // 3. If medication is already marked taken, abort further notifications and cancel pending alarms
-                if (isTaken) {
-                    Log.d(TAG, "Medication $medName ($occurrenceId) is already taken. Suppressing $stage notification.")
-                    MedicationReminderScheduler.cancelOccurrenceAlarms(context, medicationId, dateKey)
-                    return@launch
-                }
-
-                val occurrence = ReminderStorage.getOccurrence(context, medicationId, dateKey) ?: MedicationOccurrence(
-                    occurrenceId = occurrenceId,
-                    medicationId = medicationId,
-                    hubId = hubId,
-                    dateKey = dateKey,
-                    medicationName = medName,
-                    dosage = dosage,
-                    recipientId = recipientId,
-                    recipientName = recipientName,
-                    reminderResponsibleUid = responsibleUid,
-                    isChildRecipient = isChild,
-                    scheduledTimeMillis = System.currentTimeMillis(),
-                    missedReminderMillis = System.currentTimeMillis() + 300_000L,
-                    familyEscalationMillis = System.currentTimeMillis() + 900_000L
-                )
-
-                // 4. Dispatch Android Notification based on Stage
-                when (stage) {
-                    ReminderStage.INITIAL -> {
-                        MedicationNotificationHelper.showInitialReminder(context, occurrence)
-                        ReminderStorage.markStageAsNotified(context, occurrenceId, ReminderStage.INITIAL)
-                    }
-
-                    ReminderStage.MISSED -> {
-                        MedicationNotificationHelper.showMissedDosageReminder(context, occurrence)
-                        ReminderStorage.markStageAsNotified(context, occurrenceId, ReminderStage.MISSED)
-                    }
-
-                    ReminderStage.FAMILY_ESCALATION -> {
-                        // Notify original recipient or responsible adult
-                        MedicationNotificationHelper.showFamilyEscalationToOriginalUser(context, occurrence)
-
-                        // Also notify other approved family members in this hub
-                        MedicationNotificationHelper.showFamilyEscalationToMembers(context, occurrence)
-
-                        ReminderStorage.markStageAsNotified(context, occurrenceId, ReminderStage.FAMILY_ESCALATION)
-                    }
+                if (medDoc != null && medDoc.exists()) {
+                    isTaken = medDoc.getBoolean("isTakenToday") ?: false
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error in MedicationReminderReceiver", e)
-            } finally {
-                pendingResult.finish()
+                Log.w(TAG, "Could not fetch Firestore state, falling back to local store", e)
+                val localOcc = ReminderStorage.getOccurrence(context, medicationId, dateKey)
+                isTaken = localOcc?.isTaken ?: false
             }
+
+            // 3. If medication is already marked taken, abort further notifications and cancel pending alarms
+            if (isTaken) {
+                Log.d(TAG, "Medication $medName ($occurrenceId) is already taken. Suppressing $stage notification.")
+                MedicationReminderScheduler.cancelOccurrenceAlarms(context, medicationId, dateKey)
+                return
+            }
+
+            val occurrence = ReminderStorage.getOccurrence(context, medicationId, dateKey) ?: MedicationOccurrence(
+                occurrenceId = occurrenceId,
+                medicationId = medicationId,
+                hubId = hubId,
+                dateKey = dateKey,
+                medicationName = medName,
+                dosage = dosage,
+                recipientId = recipientId,
+                recipientName = recipientName,
+                reminderResponsibleUid = responsibleUid,
+                isChildRecipient = isChild,
+                scheduledTimeMillis = System.currentTimeMillis(),
+                missedReminderMillis = System.currentTimeMillis() + 300_000L,
+                familyEscalationMillis = System.currentTimeMillis() + 900_000L
+            )
+
+            // 4. Resolve current user ID and target personal recipient ID
+            val currentUserId = resolveCurrentUserId()
+            val targetRecipientId = resolveTargetPersonalRecipientId(occurrence)
+
+            if (targetRecipientId.isNullOrBlank()) {
+                Log.w(TAG, "Cannot resolve target recipient for occurrence ${occurrence.occurrenceId}. Aborting notification to prevent accidental broadcast.")
+                return
+            }
+
+            val isTargetRecipient = (currentUserId.isNotBlank() && currentUserId == targetRecipientId)
+
+            // 5. Strict Recipient Routing by Stage
+            when (stage) {
+                ReminderStage.INITIAL -> {
+                    if (isTargetRecipient) {
+                        MedicationNotificationHelper.showInitialReminder(context, occurrence)
+                        ReminderStorage.markStageAsNotified(context, occurrenceId, ReminderStage.INITIAL)
+                        Log.d(TAG, "Dispatched INITIAL reminder for ${occurrence.medicationName} to target recipient $currentUserId")
+                    } else {
+                        Log.d(TAG, "Current user $currentUserId is not target recipient $targetRecipientId for INITIAL stage of $occurrenceId. Suppressing.")
+                    }
+                }
+
+                ReminderStage.MISSED -> {
+                    if (isTargetRecipient) {
+                        MedicationNotificationHelper.showMissedDosageReminder(context, occurrence)
+                        ReminderStorage.markStageAsNotified(context, occurrenceId, ReminderStage.MISSED)
+                        Log.d(TAG, "Dispatched MISSED reminder for ${occurrence.medicationName} to target recipient $currentUserId")
+                    } else {
+                        Log.d(TAG, "Current user $currentUserId is not target recipient $targetRecipientId for MISSED stage of $occurrenceId. Suppressing.")
+                    }
+                }
+
+                ReminderStage.FAMILY_ESCALATION -> {
+                    if (isTargetRecipient) {
+                        // Audience B: Personal "Family has been notified" notification ONLY to the assigned person / responsible member
+                        MedicationNotificationHelper.showFamilyEscalationToOriginalUser(context, occurrence)
+                        ReminderStorage.markStageAsNotified(context, occurrenceId, ReminderStage.FAMILY_ESCALATION)
+                        Log.d(TAG, "Dispatched PERSONAL family escalation notification to target recipient $currentUserId")
+                    } else {
+                        // Audience A: Broad family reminder to approved family members in this specific hub
+                        val isMember = isUserMemberOfHub(occurrence.hubId, currentUserId)
+                        if (isMember) {
+                            MedicationNotificationHelper.showFamilyEscalationToMembers(context, occurrence)
+                            ReminderStorage.markStageAsNotified(context, occurrenceId, ReminderStage.FAMILY_ESCALATION)
+                            Log.d(TAG, "Dispatched FAMILY reminder for ${occurrence.medicationName} to hub member $currentUserId")
+                        } else {
+                            Log.d(TAG, "User $currentUserId is neither target recipient nor member of hub ${occurrence.hubId}. Suppressing escalation.")
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in MedicationReminderReceiver", e)
         }
     }
 }
