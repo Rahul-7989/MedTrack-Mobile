@@ -70,6 +70,86 @@ Imagine someone relies on a medication reminder app for an important medicine. T
 
 ## Learn More
 
-For a complete breakdown of MedTrack's functionality:
+For a complete breakdown of MedTrack's functionality: **[View All Features](ALL_FEATURES.md)**
 
-👉 **[View All Features](ALL_FEATURES.md)**
+<hr>
+
+<h2 align="center">The App at a Glance</h2>
+
+<p align="center">
+  <em>Take a quick look at the current MedTrack MVP.</em>
+</p>
+
+<p align="center">
+  <img src="medtrack.g.ui/mvps.png" alt="MedTrack MVP Screenshots" width="90%">
+</p>
+
+<hr>
+
+<h2 align="center">Tech Stack</h2>
+
+<table align="center">
+  <tr>
+    <th>Category</th>
+    <th>Technologies</th>
+  </tr>
+  <tr>
+    <td><strong>Language</strong></td>
+    <td>Kotlin</td>
+  </tr>
+  <tr>
+    <td><strong>Frontend / UI</strong></td>
+    <td>Jetpack Compose, Material Design 3 (M3)</td>
+  </tr>
+  <tr>
+    <td><strong>Backend & Cloud</strong></td>
+    <td>Firebase (Firestore, Authentication, Storage, App Check)</td>
+  </tr>
+  <tr>
+    <td><strong>Local Database</strong></td>
+    <td>Room (SQLite)</td>
+  </tr>
+  <tr>
+    <td><strong>Networking & API</strong></td>
+    <td>Retrofit, OkHttp, Moshi</td>
+  </tr>
+  <tr>
+    <td><strong>AI & Voice</strong></td>
+    <td>Google Gemini API, Android Speech-to-Text</td>
+  </tr>
+  <tr>
+    <td><strong>Development</strong></td>
+    <td>Google AI Studio</td>
+  </tr>
+</table>
+
+<hr>
+<h3 align="center">🚀 Where It Started</h3>
+
+<p align="center">
+  MedTrack started as my first prototype for my first hackathon.
+  <br>
+  You can explore the original prototype here:
+</p>
+
+<p align="center">
+  <a href="https://med-track-website-dt4r.vercel.app/">
+    <strong>View the First Prototype →</strong>
+  </a>
+</p>
+
+<hr>
+
+<h2 align="center">Support & Feedback</h2>
+
+<p align="center">
+  Found a bug, have a suggestion, or something isn't working as expected?
+  <br>
+  Feel free to reach out by email.
+</p>
+
+<p align="center">
+  📧 <strong>Email:</strong> rahulchandragiri3@gmail.com
+</p>
+
+<br>
