@@ -57,7 +57,8 @@ import kotlinx.coroutines.delay
 fun MedTrackSplashScreen(
     modifier: Modifier = Modifier,
     customMessage: String? = null,
-    onDestinationResolved: (String) -> Unit
+    skipNavigation: Boolean = false,
+    onDestinationResolved: (String) -> Unit = {}
 ) {
     val scale = remember { Animatable(0.85f) }
     val alpha = remember { Animatable(0f) }
@@ -73,18 +74,20 @@ fun MedTrackSplashScreen(
         )
     }
 
-    LaunchedEffect(Unit) {
-        val currentUser = FirebaseAuthService.Instance.currentUser
-        if (currentUser == null) {
-            // User is logged out -> route to Home page
-            onDestinationResolved(MedTrackDestinations.HOME)
-        } else {
-            // User is logged in -> resolve destination with smooth loading
-            val destination = UserSessionRouter.resolveCurrentDestination()
-            val route = UserSessionRouter.getRoute(destination)
-            // Ensure minimum display time for a smooth transition experience
-            delay(500)
-            onDestinationResolved(route)
+    if (!skipNavigation) {
+        LaunchedEffect(Unit) {
+            val currentUser = FirebaseAuthService.Instance.currentUser
+            if (currentUser == null) {
+                // User is logged out -> route to Home page
+                onDestinationResolved(MedTrackDestinations.HOME)
+            } else {
+                // User is logged in -> resolve destination with smooth loading
+                val destination = UserSessionRouter.resolveCurrentDestination()
+                val route = UserSessionRouter.getRoute(destination)
+                // Ensure minimum display time for a smooth transition experience
+                delay(500)
+                onDestinationResolved(route)
+            }
         }
     }
 

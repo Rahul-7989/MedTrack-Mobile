@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import com.example.data.auth.FirebaseAuthService
 import com.example.ui.hub.components.MyProfileDialog
 import com.example.ui.hub.dashboard.components.AddEditMedicationModal
+import com.example.ui.hub.dashboard.components.ChildDeleteModal
+import com.example.ui.hub.dashboard.components.ChildDetailsModal
 import com.example.ui.hub.dashboard.components.DeleteMedicationDialog
 import com.example.ui.hub.dashboard.components.HubDashboardActions
 import com.example.ui.hub.dashboard.components.HubDashboardBackgroundShapes
@@ -52,8 +54,11 @@ import com.example.ui.hub.dashboard.components.HubMembersSection
 import com.example.ui.hub.dashboard.components.MedicationBoard
 import com.example.ui.hub.dashboard.components.MedicationDetailsDialog
 import com.example.ui.hub.dashboard.components.MedicationHistoryButton
+import com.example.ui.hub.dashboard.components.MemberDetailsModal
+import com.example.ui.hub.dashboard.components.RemoveMemberModal
 import com.example.ui.hub.dashboard.data.HubDashboardRepository
 import com.example.ui.hub.dashboard.model.MedicationItem
+import com.example.ui.hub.dashboard.voice.SmartVoiceMemoModal
 import com.example.ui.hub.data.FamilyHubRepository
 import com.example.ui.profilesetup.data.UserProfileRepository
 import com.example.ui.profilesetup.model.ProfileAvatarType
@@ -77,6 +82,7 @@ private val ColorWarmIvory = Color(0xFFFAF4EC)
 @Composable
 fun FamilyHiveDashboardScreen(
     onNavigateToProfile: () -> Unit = {},
+    onNavigateToMedicationHistory: () -> Unit = {},
     onSignOut: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -123,10 +129,19 @@ fun FamilyHiveDashboardScreen(
 
     // Modal & Dialog states
     var isAddModalOpen by remember { mutableStateOf(false) }
+    var isVoiceMemoModalOpen by remember { mutableStateOf(false) }
     var isProfileDialogOpen by remember { mutableStateOf(false) }
     var medicationToEdit by remember { mutableStateOf<MedicationItem?>(null) }
     var medicationToDelete by remember { mutableStateOf<MedicationItem?>(null) }
     var selectedMedicationForDetails by remember { mutableStateOf<MedicationItem?>(null) }
+    var selectedMemberForDetails by remember { mutableStateOf<com.example.ui.hub.dashboard.model.HubMember?>(null) }
+    var memberToRemove by remember { mutableStateOf<com.example.ui.hub.dashboard.model.HubMember?>(null) }
+    var isRemovingMember by remember { mutableStateOf(false) }
+    var removeMemberError by remember { mutableStateOf<String?>(null) }
+    var selectedChildForDetails by remember { mutableStateOf<com.example.ui.hub.dashboard.model.HubMember?>(null) }
+    var childToDelete by remember { mutableStateOf<com.example.ui.hub.dashboard.model.HubMember?>(null) }
+    var isDeletingChild by remember { mutableStateOf(false) }
+    var deleteChildError by remember { mutableStateOf<String?>(null) }
 
     fun handleLogout() {
         FirebaseAuthService.Instance.signOut()
@@ -184,10 +199,7 @@ fun FamilyHiveDashboardScreen(
                             isAddModalOpen = true
                         },
                         onSmartVoiceMemoClick = {
-                            // Placeholder feedback without inventing functionality
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Smart Voice Memo is coming soon.")
-                            }
+                            isVoiceMemoModalOpen = true
                         }
                     )
                 }
@@ -238,13 +250,22 @@ fun FamilyHiveDashboardScreen(
                 // 6. MEMBERS Section directly under Medication Board
                 item(key = "members_section") {
                     HubMembersSection(
-                        members = approvedMembers
+                        members = approvedMembers,
+                        onMemberClick = { member ->
+                            if (member.isChild) {
+                                selectedChildForDetails = member
+                            } else if (isHubCreator && member.id != currentUserId) {
+                                selectedMemberForDetails = member
+                            }
+                        }
                     )
                 }
 
-                // 7. Medication History Placeholder Button
+                // 7. Medication History Button
                 item(key = "medication_history_button") {
-                    MedicationHistoryButton()
+                    MedicationHistoryButton(
+                        onClick = onNavigateToMedicationHistory
+                    )
                 }
 
                 // Extra bottom spacing for navigation and scroll comfort
@@ -335,6 +356,129 @@ fun FamilyHiveDashboardScreen(
             medication = selectedMedicationForDetails!!,
             onDismiss = {
                 selectedMedicationForDetails = null
+            }
+        )
+    }
+
+    // Smart Voice Memo Modal
+    if (isVoiceMemoModalOpen) {
+        SmartVoiceMemoModal(
+            approvedMembers = approvedMembers,
+            currentUserId = currentUserId,
+            currentUserName = userProfile?.name ?: "You",
+            onSaveMedication = { name, dosage, recipient, reminderTime, reminderHour, reminderMinute, reminderCycle, customIntervalDays, notes, imageUri ->
+                HubDashboardRepository.addMedication(
+                    name = name,
+                    dosage = dosage,
+                    recipient = recipient,
+                    reminderTime = reminderTime,
+                    reminderHour = reminderHour,
+                    reminderMinute = reminderMinute,
+                    reminderCycle = reminderCycle,
+                    customIntervalDays = customIntervalDays,
+                    customDaysOfWeek = emptyList(),
+                    notes = notes,
+                    imageUri = imageUri
+                )
+                isVoiceMemoModalOpen = false
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Medication created from Smart Voice Memo.")
+                }
+            },
+            onDismiss = {
+                isVoiceMemoModalOpen = false
+            }
+        )
+    }
+
+    // Member Details Modal (Creator Action)
+    if (selectedMemberForDetails != null) {
+        MemberDetailsModal(
+            member = selectedMemberForDetails!!,
+            onDismiss = { selectedMemberForDetails = null },
+            onRemoveClick = {
+                val mem = selectedMemberForDetails!!
+                selectedMemberForDetails = null
+                memberToRemove = mem
+            }
+        )
+    }
+
+    // Remove Member Confirmation Modal
+    if (memberToRemove != null) {
+        RemoveMemberModal(
+            member = memberToRemove!!,
+            isLoading = isRemovingMember,
+            errorMessage = removeMemberError,
+            onDismiss = {
+                if (!isRemovingMember) {
+                    memberToRemove = null
+                    removeMemberError = null
+                }
+            },
+            onConfirmRemove = {
+                val hubId = currentHub?.hubId ?: return@RemoveMemberModal
+                val targetMember = memberToRemove!!
+                isRemovingMember = true
+                removeMemberError = null
+                coroutineScope.launch {
+                    val result = HubDashboardRepository.removeHubMember(hubId, targetMember.id, targetMember.name)
+                    isRemovingMember = false
+                    if (result.isSuccess) {
+                        memberToRemove = null
+                        removeMemberError = null
+                        snackbarHostState.showSnackbar("Removed ${targetMember.name} successfully.")
+                    } else {
+                        removeMemberError = result.exceptionOrNull()?.localizedMessage ?: "Failed to remove member. Please try again."
+                    }
+                }
+            }
+        )
+    }
+
+    // Child Details Modal
+    if (selectedChildForDetails != null) {
+        val child = selectedChildForDetails!!
+        val isAuthorized = isHubCreator || child.createdByUid == currentUserId || child.reminderResponsibleMemberId == currentUserId
+        ChildDetailsModal(
+            child = child,
+            isAuthorizedToDelete = isAuthorized,
+            onDismiss = { selectedChildForDetails = null },
+            onDeleteClick = {
+                selectedChildForDetails = null
+                childToDelete = child
+            }
+        )
+    }
+
+    // Child Delete Confirmation Modal
+    if (childToDelete != null) {
+        val child = childToDelete!!
+        ChildDeleteModal(
+            child = child,
+            isLoading = isDeletingChild,
+            errorMessage = deleteChildError,
+            onDismiss = {
+                if (!isDeletingChild) {
+                    childToDelete = null
+                    deleteChildError = null
+                }
+            },
+            onConfirmDelete = {
+                val hubId = currentHub?.hubId ?: return@ChildDeleteModal
+                isDeletingChild = true
+                deleteChildError = null
+                coroutineScope.launch {
+                    val result = HubDashboardRepository.deleteChildProfile(hubId, child.id, child.name)
+                    isDeletingChild = false
+                    if (result.isSuccess) {
+                        childToDelete = null
+                        deleteChildError = null
+                        snackbarHostState.showSnackbar("Deleted ${child.name}'s child profile successfully.")
+                    } else {
+                        deleteChildError = result.exceptionOrNull()?.localizedMessage ?: "Failed to delete child profile. Please try again."
+                    }
+                }
             }
         )
     }

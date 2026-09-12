@@ -344,12 +344,12 @@ fun MedicationCard(
                         .scale(if (isTakenPressed) 0.96f else 1.0f)
                         .clip(RoundedCornerShape(8.dp))
                         .background(
-                            if (medication.isTakenToday) ColorDustyTeal else ColorDustyTeal.copy(alpha = 0.10f)
+                            if (medication.isTakenToday) ColorPaleTealBg else ColorDustyTeal.copy(alpha = 0.10f)
                         )
                         .border(
                             BorderStroke(
                                 1.dp,
-                                if (medication.isTakenToday) ColorDustyTeal else ColorDustyTeal.copy(alpha = 0.35f)
+                                if (medication.isTakenToday) ColorDustyTeal.copy(alpha = 0.4f) else ColorDustyTeal.copy(alpha = 0.35f)
                             ),
                             RoundedCornerShape(8.dp)
                         )
@@ -359,7 +359,7 @@ fun MedicationCard(
                             role = Role.Button,
                             onClick = onToggleTaken
                         )
-                        .padding(horizontal = 7.dp, vertical = 3.5.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                         .semantics {
                             contentDescription = if (medication.isTakenToday) "Taken, tap to undo" else "Mark as taken"
                         }
@@ -368,32 +368,30 @@ fun MedicationCard(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         if (medication.isTakenToday) {
                             Icon(
                                 imageVector = Icons.Outlined.Check,
                                 contentDescription = null,
-                                tint = ColorWarmIvory,
-                                modifier = Modifier.size(11.dp)
+                                tint = ColorDustyTeal,
+                                modifier = Modifier.size(12.dp)
                             )
-                            Column(horizontalAlignment = Alignment.Start) {
+                            Text(
+                                text = "Taken",
+                                fontFamily = SoraFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.5.sp,
+                                color = ColorDustyTeal
+                            )
+                            if (!medication.takenAtTime.isNullOrBlank()) {
                                 Text(
-                                    text = "Taken",
+                                    text = medication.takenAtTime,
                                     fontFamily = SoraFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp,
-                                    color = ColorWarmIvory
+                                    fontWeight = FontWeight.Normal,
+                                    fontSize = 9.sp,
+                                    color = ColorTextMuted
                                 )
-                                if (!medication.takenAtTime.isNullOrBlank()) {
-                                    Text(
-                                        text = medication.takenAtTime,
-                                        fontFamily = SoraFontFamily,
-                                        fontWeight = FontWeight.Normal,
-                                        fontSize = 8.sp,
-                                        color = ColorWarmIvory.copy(alpha = 0.85f)
-                                    )
-                                }
                             }
                         } else {
                             Text(

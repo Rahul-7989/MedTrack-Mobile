@@ -11,6 +11,7 @@ val PaleTeal = Color(0xFFA9CED0)
 val WarmIvory = Color(0xFFFAF4EC)
 val DarkWarmText = Color(0xFF514A44)
 val WarmNeutral = Color(0xFF665F58)
+val MutedTerracotta = Color(0xFFC8755D)
 
 // Supporting accessibility & semantic tokens
 val MedTrackTextPrimary = Color(0xFF261F1A)

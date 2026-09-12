@@ -108,6 +108,8 @@ object ProfileRepository {
                 val createdByUid = doc.getString("createdByUid") ?: currentUser.uid
                 val missedDosage = (doc.getLong("missedDosageReminderMinutes") ?: 5L).toInt()
                 val familyNotify = (doc.getLong("familyNotificationReminderMinutes") ?: 10L).toInt()
+                val approvedAdults = loadHubApprovedMembers(hubId).filter { it.id != currentUser.uid }
+                val membersCount = (approvedAdults.size + 1).coerceAtLeast(1)
 
                 hubsMap[hubId] = UserHubSummary(
                     hubId = hubId,
@@ -116,7 +118,9 @@ object ProfileRepository {
                     role = HubUserRole.CREATOR,
                     createdByUid = createdByUid,
                     missedDosageReminderMinutes = missedDosage,
-                    familyNotificationReminderMinutes = familyNotify
+                    familyNotificationReminderMinutes = familyNotify,
+                    membersCount = membersCount,
+                    approvedAdultMembers = approvedAdults
                 )
             }
 
@@ -134,6 +138,8 @@ object ProfileRepository {
                 val isCreator = createdByUid == currentUser.uid
                 val missedDosage = (doc.getLong("missedDosageReminderMinutes") ?: 5L).toInt()
                 val familyNotify = (doc.getLong("familyNotificationReminderMinutes") ?: 10L).toInt()
+                val approvedAdults = loadHubApprovedMembers(hubId).filter { it.id != currentUser.uid }
+                val membersCount = (approvedAdults.size + 1).coerceAtLeast(1)
 
                 hubsMap[hubId] = UserHubSummary(
                     hubId = hubId,
@@ -142,7 +148,9 @@ object ProfileRepository {
                     role = if (isCreator) HubUserRole.CREATOR else HubUserRole.MEMBER,
                     createdByUid = createdByUid,
                     missedDosageReminderMinutes = missedDosage,
-                    familyNotificationReminderMinutes = familyNotify
+                    familyNotificationReminderMinutes = familyNotify,
+                    membersCount = membersCount,
+                    approvedAdultMembers = approvedAdults
                 )
             }
         } catch (_: Exception) {
@@ -336,6 +344,9 @@ object ProfileRepository {
             val avatarType = gender.toChildAvatarType()
             val createdAt = System.currentTimeMillis()
 
+            val currentUser = FirebaseAuthService.Instance.currentUser
+            val currentUserId = currentUser?.uid ?: ""
+
             val childData = ChildProfileData(
                 childId = childId,
                 hubId = hubId,
@@ -344,6 +355,7 @@ object ProfileRepository {
                 avatarType = avatarType,
                 reminderResponsibleMemberId = reminderResponsibleMemberId,
                 reminderResponsibleMemberName = reminderResponsibleMemberName,
+                createdByUid = currentUserId,
                 createdAt = createdAt
             )
 
@@ -356,6 +368,7 @@ object ProfileRepository {
                 "avatarType" to childData.avatarType.name,
                 "reminderResponsibleMemberId" to childData.reminderResponsibleMemberId,
                 "reminderResponsibleMemberName" to childData.reminderResponsibleMemberName,
+                "createdByUid" to currentUserId,
                 "createdAt" to childData.createdAt,
                 "updatedAt" to createdAt
             )
@@ -367,7 +380,221 @@ object ProfileRepository {
                 .set(childMap, SetOptions.merge())
                 .await()
 
+            val profile = UserProfileRepository.userProfile.value
+            com.example.ui.hub.activity.data.HubActivityRepository.recordEvent(
+                hubId = hubId,
+                actorUserId = currentUser?.uid ?: "current_user_local",
+                actorName = profile?.name ?: "Family Member",
+                actorAvatarType = profile?.avatarType?.name ?: "MALE",
+                eventType = "CHILD_CREATED",
+                targetType = "CHILD",
+                targetId = childId,
+                metadata = mapOf(
+                    "childName" to childData.name,
+                    "remindName" to childData.reminderResponsibleMemberName
+                )
+            )
+
             Result.success(childData)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteHub(hubId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val currentUser = FirebaseAuthService.Instance.currentUser
+            ?: return@withContext Result.failure(IllegalStateException("Not authenticated"))
+        try {
+            val firestore = FirebaseFirestore.getInstance()
+            val hubDocRef = firestore.collection("family_hubs").document(hubId)
+            val hubDoc = hubDocRef.get().await()
+            if (!hubDoc.exists()) {
+                return@withContext Result.failure(IllegalStateException("Hub does not exist"))
+            }
+            val createdByUid = hubDoc.getString("createdByUid")
+            if (createdByUid != currentUser.uid) {
+                return@withContext Result.failure(IllegalStateException("Only the hub creator can delete this hub."))
+            }
+
+            val profile = UserProfileRepository.userProfile.value
+            com.example.ui.hub.activity.data.HubActivityRepository.recordEvent(
+                hubId = hubId,
+                actorUserId = currentUser.uid,
+                actorName = profile?.name ?: "Family Member",
+                actorAvatarType = profile?.avatarType?.name ?: "MALE",
+                eventType = "HUB_DELETED",
+                targetType = "HUB",
+                targetId = hubId
+            )
+
+            val subcollections = listOf("members", "children", "join_requests", "medications", "hub_activity")
+            for (sub in subcollections) {
+                try {
+                    val subSnap = hubDocRef.collection(sub).get().await()
+                    for (doc in subSnap.documents) {
+                        doc.reference.delete().await()
+                    }
+                } catch (_: Exception) {}
+            }
+
+            hubDocRef.delete().await()
+
+            val usersSnap = firestore.collection("users").whereEqualTo("currentHubId", hubId).get().await()
+            for (doc in usersSnap.documents) {
+                try {
+                    doc.reference.update(
+                        mapOf(
+                            "currentHubId" to null,
+                            "currentHiveCode" to null,
+                            "hubName" to null
+                        )
+                    ).await()
+                } catch (_: Exception) {}
+            }
+
+            val activeHub = FamilyHubRepository.currentHub.value
+            if (activeHub != null && activeHub.hubId == hubId) {
+                FamilyHubRepository.clearHub()
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun leaveHub(hubId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val currentUser = FirebaseAuthService.Instance.currentUser
+            ?: return@withContext Result.failure(IllegalStateException("Not authenticated"))
+        try {
+            val firestore = FirebaseFirestore.getInstance()
+            val hubDocRef = firestore.collection("family_hubs").document(hubId)
+            val hubDoc = hubDocRef.get().await()
+            if (!hubDoc.exists()) {
+                return@withContext Result.failure(IllegalStateException("Hub does not exist"))
+            }
+
+            val createdByUid = hubDoc.getString("createdByUid")
+            if (createdByUid == currentUser.uid) {
+                return@withContext Result.failure(IllegalStateException("Creator cannot leave without transferring ownership."))
+            }
+
+            val profile = UserProfileRepository.userProfile.value
+            com.example.ui.hub.activity.data.HubActivityRepository.recordEvent(
+                hubId = hubId,
+                actorUserId = currentUser.uid,
+                actorName = profile?.name ?: "Family Member",
+                actorAvatarType = profile?.avatarType?.name ?: "MALE",
+                eventType = "MEMBER_LEFT",
+                targetType = "USER",
+                targetId = currentUser.uid
+            )
+
+            hubDocRef.update(
+                "members", com.google.firebase.firestore.FieldValue.arrayRemove(currentUser.uid)
+            ).await()
+
+            try {
+                hubDocRef.collection("members").document(currentUser.uid).delete().await()
+            } catch (_: Exception) {}
+
+            val userDocRef = firestore.collection("users").document(currentUser.uid)
+            val userDoc = userDocRef.get().await()
+            if (userDoc.getString("currentHubId") == hubId) {
+                userDocRef.update(
+                    mapOf(
+                        "currentHubId" to null,
+                        "currentHiveCode" to null,
+                        "hubName" to null
+                    )
+                ).await()
+            }
+
+            val activeHub = FamilyHubRepository.currentHub.value
+            if (activeHub != null && activeHub.hubId == hubId) {
+                FamilyHubRepository.clearHub()
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun transferCreatorAndLeave(hubId: String, newCreatorUserId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val currentUser = FirebaseAuthService.Instance.currentUser
+            ?: return@withContext Result.failure(IllegalStateException("Not authenticated"))
+        try {
+            val firestore = FirebaseFirestore.getInstance()
+            val hubDocRef = firestore.collection("family_hubs").document(hubId)
+            val hubDoc = hubDocRef.get().await()
+            if (!hubDoc.exists()) {
+                return@withContext Result.failure(IllegalStateException("Hub does not exist"))
+            }
+
+            val createdByUid = hubDoc.getString("createdByUid")
+            if (createdByUid != currentUser.uid) {
+                return@withContext Result.failure(IllegalStateException("Only the creator can transfer ownership."))
+            }
+
+            val profile = UserProfileRepository.userProfile.value
+            val actorName = profile?.name ?: "Family Member"
+            val actorAvatar = profile?.avatarType?.name ?: "MALE"
+
+            hubDocRef.update("createdByUid", newCreatorUserId).await()
+
+            try {
+                hubDocRef.collection("members").document(newCreatorUserId).set(
+                    mapOf("isCreator" to true), SetOptions.merge()
+                ).await()
+            } catch (_: Exception) {}
+
+            com.example.ui.hub.activity.data.HubActivityRepository.recordEvent(
+                hubId = hubId,
+                actorUserId = currentUser.uid,
+                actorName = actorName,
+                actorAvatarType = actorAvatar,
+                eventType = "CREATOR_ROLE_TRANSFERRED",
+                targetType = "USER",
+                targetId = newCreatorUserId
+            )
+
+            hubDocRef.update(
+                "members", com.google.firebase.firestore.FieldValue.arrayRemove(currentUser.uid)
+            ).await()
+
+            try {
+                hubDocRef.collection("members").document(currentUser.uid).delete().await()
+            } catch (_: Exception) {}
+
+            com.example.ui.hub.activity.data.HubActivityRepository.recordEvent(
+                hubId = hubId,
+                actorUserId = currentUser.uid,
+                actorName = actorName,
+                actorAvatarType = actorAvatar,
+                eventType = "MEMBER_LEFT",
+                targetType = "USER",
+                targetId = currentUser.uid
+            )
+
+            val userDocRef = firestore.collection("users").document(currentUser.uid)
+            val userDoc = userDocRef.get().await()
+            if (userDoc.getString("currentHubId") == hubId) {
+                userDocRef.update(
+                    mapOf(
+                        "currentHubId" to null,
+                        "currentHiveCode" to null,
+                        "hubName" to null
+                    )
+                ).await()
+            }
+
+            val activeHub = FamilyHubRepository.currentHub.value
+            if (activeHub != null && activeHub.hubId == hubId) {
+                FamilyHubRepository.clearHub()
+            }
+
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

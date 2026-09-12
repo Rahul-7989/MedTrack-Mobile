@@ -13,6 +13,7 @@ import com.example.reminder.model.ReminderStage
 import com.example.reminder.receiver.MedicationReminderReceiver
 import com.example.ui.hub.dashboard.model.MedicationItem
 import com.example.ui.hub.dashboard.model.ReminderCycle
+import com.example.reminder.util.ReminderCycleUtils
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -215,14 +216,25 @@ object MedicationReminderScheduler {
         missedDosageMinutes: Int = 5,
         familyNotificationMinutes: Int = 15
     ) {
-        val todayKey = getTodayDateKey()
+        val now = System.currentTimeMillis()
         val calendar = Calendar.getInstance(TimeZone.getDefault())
         val occurrences = mutableListOf<MedicationOccurrence>()
 
         for (med in medications) {
             if (!isMedicationScheduledForDate(med, calendar)) continue
 
+            val (cycleStartMs, cycleEndMs) = ReminderCycleUtils.getCycleStartAndEnd(
+                createdAt = med.createdAt,
+                cycle = med.reminderCycle,
+                customIntervalDays = med.customIntervalDays,
+                now = now
+            )
+            val cycleDateKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(cycleStartMs))
+            val isTakenInCycle = med.isTakenToday && med.takenAtMillis > 0L && med.takenAtMillis >= cycleStartMs
+            val takenTimeFormatted = if (isTakenInCycle) med.takenAtTime else null
+
             val schedCal = Calendar.getInstance(TimeZone.getDefault()).apply {
+                timeInMillis = cycleStartMs
                 set(Calendar.HOUR_OF_DAY, med.reminderHour)
                 set(Calendar.MINUTE, med.reminderMinute)
                 set(Calendar.SECOND, 0)
@@ -233,12 +245,12 @@ object MedicationReminderScheduler {
             val missedMillis = scheduledMillis + (missedDosageMinutes * 60_000L)
             val familyMillis = scheduledMillis + (familyNotificationMinutes * 60_000L)
 
-            val occurrenceId = "${med.id}_$todayKey"
+            val occurrenceId = "${med.id}_$cycleDateKey"
             val occurrence = MedicationOccurrence(
                 occurrenceId = occurrenceId,
                 medicationId = med.id,
                 hubId = hubId,
-                dateKey = todayKey,
+                dateKey = cycleDateKey,
                 medicationName = med.name,
                 dosage = med.dosage,
                 recipientId = med.recipientId,
@@ -252,8 +264,9 @@ object MedicationReminderScheduler {
                 familyEscalationMillis = familyMillis,
                 reminderResponsibleUid = med.reminderResponsibleUid,
                 isChildRecipient = med.isChildRecipient,
-                isTaken = med.isTakenToday,
-                takenAtFormatted = med.takenAtTime
+                isTaken = isTakenInCycle,
+                takenAtFormatted = takenTimeFormatted,
+                takenAtMillis = if (isTakenInCycle) med.takenAtMillis else 0L
             )
 
             occurrences.add(occurrence)

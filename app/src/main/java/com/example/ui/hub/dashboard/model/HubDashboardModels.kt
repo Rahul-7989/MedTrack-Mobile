@@ -24,7 +24,8 @@ data class HubMember(
     val isCreator: Boolean = false,
     val isChild: Boolean = false,
     val reminderResponsibleMemberId: String? = null,
-    val reminderResponsibleMemberName: String? = null
+    val reminderResponsibleMemberName: String? = null,
+    val createdByUid: String? = null
 )
 
 /**
@@ -85,6 +86,7 @@ data class MedicationItem(
     val createdByUid: String,
     val isTakenToday: Boolean = false,
     val takenAtTime: String? = null,
+    val takenAtMillis: Long = 0L,
     val reminderResponsibleUid: String? = null,
     val isChildRecipient: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()

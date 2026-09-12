@@ -20,13 +20,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.MeetingRoom
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +52,7 @@ import com.example.ui.profile.model.HubUserRole
 import com.example.ui.profile.model.UserHubSummary
 import com.example.ui.theme.DarkWarmText
 import com.example.ui.theme.DustyTeal
+import com.example.ui.theme.MutedTerracotta
 import com.example.ui.theme.SoraFontFamily
 import com.example.ui.theme.WarmAmber
 import com.example.ui.theme.WarmCream
@@ -78,6 +82,8 @@ fun ProfileFamilyHubsSection(
     onCreateHubClick: () -> Unit,
     onJoinHubClick: () -> Unit,
     onHubCardClick: (UserHubSummary) -> Unit,
+    onDeleteHubClick: (UserHubSummary) -> Unit,
+    onLeaveHubClick: (UserHubSummary) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -179,7 +185,6 @@ fun ProfileFamilyHubsSection(
 
         // Existing Hubs list or Empty State
         if (hubs.isEmpty()) {
-            // Compact empty state
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -224,6 +229,8 @@ fun ProfileFamilyHubsSection(
                     HubCardItem(
                         hub = hub,
                         onClick = { onHubCardClick(hub) },
+                        onDeleteClick = { onDeleteHubClick(hub) },
+                        onLeaveClick = { onLeaveHubClick(hub) },
                         modifier = Modifier.testTag("profile_hub_card_${hub.hubId}")
                     )
                 }
@@ -233,12 +240,14 @@ fun ProfileFamilyHubsSection(
 }
 
 /**
- * Compact rounded hub card with avatar/icon, hub name, role, and navigation arrow.
+ * Compact rounded hub card with avatar/icon, hub name, role, delete/leave icons, and navigation arrow.
  */
 @Composable
 private fun HubCardItem(
     hub: UserHubSummary,
     onClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    onLeaveClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -278,7 +287,6 @@ private fun HubCardItem(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f, fill = false)
             ) {
-                // Hub Avatar / Icon Container
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -296,7 +304,6 @@ private fun HubCardItem(
                 }
 
                 Column {
-                    // Hub Name (Visually stronger)
                     Text(
                         text = hub.name,
                         fontFamily = SoraFontFamily,
@@ -308,7 +315,6 @@ private fun HubCardItem(
 
                     Spacer(modifier = Modifier.height(2.dp))
 
-                    // Role Badge (Creator or Member)
                     val isCreator = hub.role == HubUserRole.CREATOR
                     Box(
                         modifier = Modifier
@@ -327,15 +333,69 @@ private fun HubCardItem(
                 }
             }
 
-            // Right: Navigation Arrow
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
-                contentDescription = "Open ${hub.name} dashboard",
-                tint = ColorDustyTeal,
-                modifier = Modifier
-                    .size(18.dp)
-                    .padding(start = 8.dp)
-            )
+            // Right: Delete icon, Leave icon, Navigation Arrow
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                val isCreator = hub.role == HubUserRole.CREATOR
+                val hasOtherMembers = hub.membersCount > 1
+
+                if (isCreator) {
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .testTag("delete_hub_icon_${hub.hubId}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Delete hub ${hub.name}",
+                            tint = MutedTerracotta,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    if (hasOtherMembers) {
+                        IconButton(
+                            onClick = onLeaveClick,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .testTag("leave_hub_icon_${hub.hubId}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.Logout,
+                                contentDescription = "Leave hub ${hub.name}",
+                                tint = ColorWarmNeutral,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                } else {
+                    IconButton(
+                        onClick = onLeaveClick,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .testTag("leave_hub_icon_${hub.hubId}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.Logout,
+                            contentDescription = "Leave hub ${hub.name}",
+                            tint = ColorWarmNeutral,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                    contentDescription = "Open ${hub.name} dashboard",
+                    tint = ColorDustyTeal,
+                    modifier = Modifier
+                        .size(18.dp)
+                        .padding(start = 4.dp)
+                )
+            }
         }
     }
 }

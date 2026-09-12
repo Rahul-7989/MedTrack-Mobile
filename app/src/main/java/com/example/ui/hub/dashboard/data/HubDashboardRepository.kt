@@ -5,6 +5,7 @@ import com.example.ui.hub.dashboard.model.HubJoinRequest
 import com.example.ui.hub.dashboard.model.HubMember
 import com.example.ui.hub.dashboard.model.MedicationItem
 import com.example.ui.hub.dashboard.model.ReminderCycle
+import com.example.reminder.util.ReminderCycleUtils
 import com.example.ui.hub.data.FamilyHubRepository
 import com.example.ui.profilesetup.data.UserProfileRepository
 import com.example.ui.profilesetup.model.ProfileAvatarType
@@ -123,6 +124,38 @@ object HubDashboardRepository {
                             try {
                                 val recipientAvatarStr = doc.getString("recipientAvatarType") ?: "MALE"
                                 val cycleStr = doc.getString("reminderCycle") ?: ReminderCycle.EVERY_24_HOURS.name
+                                val createdAtVal = doc.getLong("createdAt") ?: System.currentTimeMillis()
+                                val cycle = try { ReminderCycle.valueOf(cycleStr) } catch (_: Exception) { ReminderCycle.EVERY_24_HOURS }
+                                val customInterval = (doc.getLong("customIntervalDays") ?: 1L).toInt()
+                                val isTakenStored = doc.getBoolean("isTakenToday") ?: false
+                                val takenAtTimeStored = doc.getString("takenAtTime")
+                                val takenAtMillisStored = doc.getLong("takenAtMillis") ?: 0L
+
+                                val now = System.currentTimeMillis()
+                                val (cycleStartMs, cycleEndMs) = ReminderCycleUtils.getCycleStartAndEnd(createdAtVal, cycle, customInterval, now)
+                                val isTakenInCycle = isTakenStored && takenAtMillisStored > 0L && takenAtMillisStored >= cycleStartMs
+                                val takenTime = if (isTakenInCycle) takenAtTimeStored else null
+                                val takenMillis = if (isTakenInCycle) takenAtMillisStored else 0L
+
+                                if (isTakenStored && !isTakenInCycle) {
+                                    repositoryScope.launch {
+                                        try {
+                                            firestore.collection("family_hubs")
+                                                .document(hubId)
+                                                .collection("medications")
+                                                .document(doc.id)
+                                                .update(
+                                                    mapOf(
+                                                        "isTakenToday" to false,
+                                                        "takenAtTime" to null,
+                                                        "takenAtMillis" to 0L,
+                                                        "updatedAt" to System.currentTimeMillis()
+                                                    )
+                                                )
+                                        } catch (_: Exception) {}
+                                    }
+                                }
+
                                 MedicationItem(
                                     id = doc.getString("id") ?: doc.id,
                                     hubId = doc.getString("hubId") ?: hubId,
@@ -136,19 +169,18 @@ object HubDashboardRepository {
                                     reminderTime = doc.getString("reminderTime") ?: "9:00 AM",
                                     reminderHour = (doc.getLong("reminderHour") ?: 9L).toInt(),
                                     reminderMinute = (doc.getLong("reminderMinute") ?: 0L).toInt(),
-                                    reminderCycle = try {
-                                        ReminderCycle.valueOf(cycleStr)
-                                    } catch (_: Exception) { ReminderCycle.EVERY_24_HOURS },
-                                    customIntervalDays = (doc.getLong("customIntervalDays") ?: 1L).toInt(),
+                                    reminderCycle = cycle,
+                                    customIntervalDays = customInterval,
                                     customDaysOfWeek = (doc.get("customDaysOfWeek") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                                     notes = doc.getString("notes"),
                                     imageUri = doc.getString("imageUri"),
                                     createdByUid = doc.getString("createdByUid") ?: "",
-                                    isTakenToday = doc.getBoolean("isTakenToday") ?: false,
-                                    takenAtTime = doc.getString("takenAtTime"),
+                                    isTakenToday = isTakenInCycle,
+                                    takenAtTime = takenTime,
+                                    takenAtMillis = takenMillis,
                                     reminderResponsibleUid = doc.getString("reminderResponsibleUid"),
                                     isChildRecipient = doc.getBoolean("isChildRecipient") ?: false,
-                                    createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
+                                    createdAt = createdAtVal
                                 )
                             } catch (_: Exception) {
                                 null
@@ -404,15 +436,16 @@ object HubDashboardRepository {
      * Marks a medication as taken or un-taken with timestamp and syncs to Firestore.
      */
     fun toggleMedicationTaken(medicationId: String) {
+        val now = System.currentTimeMillis()
         val nowFormatted = getCurrentFormattedTime()
         var updatedItem: MedicationItem? = null
 
         _medications.value = _medications.value.map { item ->
             if (item.id == medicationId) {
                 val toggled = if (item.isTakenToday) {
-                    item.copy(isTakenToday = false, takenAtTime = null)
+                    item.copy(isTakenToday = false, takenAtTime = null, takenAtMillis = 0L)
                 } else {
-                    item.copy(isTakenToday = true, takenAtTime = nowFormatted)
+                    item.copy(isTakenToday = true, takenAtTime = nowFormatted, takenAtMillis = now)
                 }
                 updatedItem = toggled
                 toggled
@@ -427,14 +460,15 @@ object HubDashboardRepository {
 
         try {
             val context = com.example.MedTrackApplication.appContext
-            val todayKey = com.example.reminder.scheduler.MedicationReminderScheduler.getTodayDateKey()
+            val (cycleStartMs, _) = ReminderCycleUtils.getCycleStartAndEnd(item.createdAt, item.reminderCycle, item.customIntervalDays, now)
+            val cycleDateKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(cycleStartMs))
             if (item.isTakenToday) {
-                com.example.reminder.scheduler.MedicationReminderScheduler.cancelOccurrenceAlarms(context, medicationId, todayKey)
-                val occ = com.example.reminder.data.ReminderStorage.getOccurrence(context, medicationId, todayKey)
+                com.example.reminder.scheduler.MedicationReminderScheduler.cancelOccurrenceAlarms(context, medicationId, cycleDateKey)
+                val occ = com.example.reminder.data.ReminderStorage.getOccurrence(context, medicationId, cycleDateKey)
                 if (occ != null) {
                     com.example.reminder.notification.MedicationNotificationHelper.cancelOccurrenceNotifications(context, occ)
                 }
-                com.example.reminder.data.ReminderStorage.markOccurrenceAsTaken(context, medicationId, todayKey, nowFormatted)
+                com.example.reminder.data.ReminderStorage.markOccurrenceAsTaken(context, medicationId, cycleDateKey, nowFormatted)
             } else {
                 com.example.reminder.scheduler.MedicationReminderScheduler.syncMedications(
                     context = context,
@@ -445,6 +479,23 @@ object HubDashboardRepository {
                 )
             }
         } catch (_: Exception) {}
+
+        val profile = UserProfileRepository.userProfile.value
+        com.example.ui.hub.activity.data.HubActivityRepository.recordEvent(
+            hubId = currentHub.hubId,
+            actorUserId = getCurrentUserId(),
+            actorName = profile?.name ?: "Family Member",
+            actorAvatarType = profile?.avatarType?.name ?: "MALE",
+            eventType = "MEDICATION_MARKED_TAKEN",
+            targetType = "MEDICATION",
+            targetId = item.id,
+            metadata = mapOf(
+                "medicineName" to item.name,
+                "dosage" to item.dosage,
+                "scheduledTime" to item.reminderTime,
+                "takenTime" to nowFormatted
+            )
+        )
 
         repositoryScope.launch {
             try {
@@ -457,6 +508,7 @@ object HubDashboardRepository {
                         mapOf(
                             "isTakenToday" to item.isTakenToday,
                             "takenAtTime" to item.takenAtTime,
+                            "takenAtMillis" to item.takenAtMillis,
                             "updatedAt" to System.currentTimeMillis()
                         )
                     )
@@ -560,6 +612,22 @@ object HubDashboardRepository {
             } catch (_: Exception) {}
         }
 
+        val profile = UserProfileRepository.userProfile.value
+        com.example.ui.hub.activity.data.HubActivityRepository.recordEvent(
+            hubId = hubId,
+            actorUserId = currentUid,
+            actorName = profile?.name ?: "Family Member",
+            actorAvatarType = profile?.avatarType?.name ?: "MALE",
+            eventType = "MEDICATION_CREATED",
+            targetType = "MEDICATION",
+            targetId = newItem.id,
+            metadata = mapOf(
+                "medicineName" to newItem.name,
+                "dosage" to newItem.dosage,
+                "recipientName" to newItem.recipientName
+            )
+        )
+
         return newItem
     }
 
@@ -655,6 +723,22 @@ object HubDashboardRepository {
             } catch (_: Exception) {}
         }
 
+        val profile = UserProfileRepository.userProfile.value
+        com.example.ui.hub.activity.data.HubActivityRepository.recordEvent(
+            hubId = hubId,
+            actorUserId = currentUid,
+            actorName = profile?.name ?: "Family Member",
+            actorAvatarType = profile?.avatarType?.name ?: "MALE",
+            eventType = "MEDICATION_EDITED",
+            targetType = "MEDICATION",
+            targetId = updated.id,
+            metadata = mapOf(
+                "medicineName" to updated.name,
+                "dosage" to updated.dosage,
+                "recipientName" to updated.recipientName
+            )
+        )
+
         return true
     }
 
@@ -695,6 +779,22 @@ object HubDashboardRepository {
                     .delete()
             } catch (_: Exception) {}
         }
+
+        val profile = UserProfileRepository.userProfile.value
+        com.example.ui.hub.activity.data.HubActivityRepository.recordEvent(
+            hubId = hubId,
+            actorUserId = currentUid,
+            actorName = profile?.name ?: "Family Member",
+            actorAvatarType = profile?.avatarType?.name ?: "MALE",
+            eventType = "MEDICATION_DELETED",
+            targetType = "MEDICATION",
+            targetId = target.id,
+            metadata = mapOf(
+                "medicineName" to target.name,
+                "dosage" to target.dosage,
+                "recipientName" to target.recipientName
+            )
+        )
 
         return true
     }
@@ -779,6 +879,20 @@ object HubDashboardRepository {
                     )
                     .await()
 
+                val profile = UserProfileRepository.userProfile.value
+                com.example.ui.hub.activity.data.HubActivityRepository.recordEvent(
+                    hubId = currentHub.hubId,
+                    actorUserId = currentUid,
+                    actorName = profile?.name ?: "Family Member",
+                    actorAvatarType = profile?.avatarType?.name ?: "MALE",
+                    eventType = "JOIN_REQUEST_ACCEPTED",
+                    targetType = "MEMBER",
+                    targetId = request.userId,
+                    metadata = mapOf(
+                        "memberName" to request.userName
+                    )
+                )
+
                 // Update approved user doc so their app knows their active hub
                 firestore.collection("users")
                     .document(request.userId)
@@ -862,6 +976,7 @@ object HubDashboardRepository {
                     if (serverDate > 0) {
                         val localNow = System.currentTimeMillis()
                         serverTimeOffsetMs = serverDate - localNow
+                        com.example.util.CurrentTimeService.setServerTimeOffset(serverTimeOffsetMs)
                         _formattedCurrentTime.value = getCurrentFormattedTime()
                         _formattedCurrentDateLabel.value = getCurrentFormattedDate()
                     }
@@ -870,22 +985,18 @@ object HubDashboardRepository {
             } catch (_: Exception) {
                 // Gracefully fallback to device clock
                 serverTimeOffsetMs = 0L
+                com.example.util.CurrentTimeService.setServerTimeOffset(0L)
                 _formattedCurrentDateLabel.value = getCurrentFormattedDate()
             }
         }
     }
 
     private fun getCurrentFormattedTime(): String {
-        val currentEffectiveTime = System.currentTimeMillis() + serverTimeOffsetMs
-        val calendar = Calendar.getInstance(TimeZone.getDefault())
-        calendar.timeInMillis = currentEffectiveTime
-        val formatter = SimpleDateFormat("h:mm a", Locale.getDefault())
-        return formatter.format(calendar.time)
+        return com.example.util.CurrentTimeService.getCurrentLocalTime()
     }
 
     private fun getCurrentFormattedDeviceTime(): String {
-        val formatter = SimpleDateFormat("h:mm a", Locale.getDefault())
-        return formatter.format(Date())
+        return com.example.util.CurrentTimeService.getCurrentLocalTime()
     }
 
     /**
@@ -895,20 +1006,207 @@ object HubDashboardRepository {
      * Uses server-authoritative offset when available, otherwise device local calendar.
      */
     fun getCurrentFormattedDate(): String {
-        val currentEffectiveTime = System.currentTimeMillis() + serverTimeOffsetMs
-        val calendar = Calendar.getInstance(TimeZone.getDefault())
-        calendar.timeInMillis = currentEffectiveTime
-        val day = calendar.get(Calendar.DAY_OF_MONTH)
-        val monthCode = MONTH_CODES[calendar.get(Calendar.MONTH)]
-        val year = calendar.get(Calendar.YEAR)
-        return "$day $monthCode, $year"
+        return com.example.util.CurrentTimeService.getCurrentFormattedDate()
     }
 
     private fun getCurrentFormattedDeviceDate(): String {
-        val calendar = Calendar.getInstance(TimeZone.getDefault())
-        val day = calendar.get(Calendar.DAY_OF_MONTH)
-        val monthCode = MONTH_CODES[calendar.get(Calendar.MONTH)]
-        val year = calendar.get(Calendar.YEAR)
-        return "$day $monthCode, $year"
+        return com.example.util.CurrentTimeService.getCurrentFormattedDate()
+    }
+
+    /**
+     * Removes a member from the family hub (Creator-only operation).
+     * Cleans up hub membership, medications, occurrences, reminders, and Hub Activity history.
+     */
+    suspend fun removeHubMember(hubId: String, targetMemberId: String, targetMemberName: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val currentUser = FirebaseAuthService.Instance.currentUser
+            ?: return@withContext Result.failure(IllegalStateException("Not authenticated"))
+        try {
+            val firestore = FirebaseFirestore.getInstance()
+            val hubDocRef = firestore.collection("family_hubs").document(hubId)
+            val hubDoc = hubDocRef.get().await()
+            if (!hubDoc.exists()) {
+                return@withContext Result.failure(IllegalStateException("Hub does not exist"))
+            }
+
+            val createdByUid = hubDoc.getString("createdByUid")
+            if (createdByUid != currentUser.uid) {
+                return@withContext Result.failure(IllegalStateException("Only the hub creator can remove members."))
+            }
+
+            if (targetMemberId == currentUser.uid) {
+                return@withContext Result.failure(IllegalStateException("Creator cannot remove themselves."))
+            }
+
+            val profile = UserProfileRepository.userProfile.value
+            val actorName = profile?.name ?: "Family Member"
+            val actorAvatar = profile?.avatarType?.name ?: "MALE"
+
+            // 1. Remove from members subcollection
+            try {
+                hubDocRef.collection("members").document(targetMemberId).delete().await()
+            } catch (_: Exception) {}
+
+            // 2. Remove from members array in hub doc
+            hubDocRef.update(
+                "members", FieldValue.arrayRemove(targetMemberId)
+            ).await()
+
+            // 3. Delete medications belonging to or associated with targetMemberId in this hub
+            val medsSnapshot = hubDocRef.collection("medications")
+                .whereEqualTo("createdByUid", targetMemberId)
+                .get()
+                .await()
+            val medsByRecipient = hubDocRef.collection("medications")
+                .whereEqualTo("recipientId", targetMemberId)
+                .get()
+                .await()
+
+            val batch = firestore.batch()
+            val docsToDelete = (medsSnapshot.documents + medsByRecipient.documents).distinctBy { it.id }
+            for (doc in docsToDelete) {
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+
+            // 4. Cancel scheduled reminders for deleted medications
+            try {
+                val context = com.example.MedTrackApplication.appContext
+                val currentHub = FamilyHubRepository.currentHub.value
+                val remainingMeds = _medications.value.filter { med -> med.createdByUid != targetMemberId && med.recipientId != targetMemberId }
+                com.example.reminder.scheduler.MedicationReminderScheduler.syncMedications(
+                    context = context,
+                    hubId = hubId,
+                    medications = remainingMeds,
+                    missedDosageMinutes = currentHub?.missedDosageReminderMinutes ?: 5,
+                    familyNotificationMinutes = currentHub?.familyNotificationReminderMinutes ?: 15
+                )
+            } catch (_: Exception) {}
+
+            // 5. Record activity event
+            com.example.ui.hub.activity.data.HubActivityRepository.recordEvent(
+                hubId = hubId,
+                actorUserId = currentUser.uid,
+                actorName = actorName,
+                actorAvatarType = actorAvatar,
+                eventType = "MEMBER_REMOVED",
+                targetType = "USER",
+                targetId = targetMemberId,
+                metadata = mapOf(
+                    "memberName" to targetMemberName,
+                    "creatorName" to actorName
+                )
+            )
+
+            // 6. Invalidate target user's currentHubId so they are redirected in real-time
+            try {
+                val targetUserDocRef = firestore.collection("users").document(targetMemberId)
+                val targetUserDoc = targetUserDocRef.get().await()
+                if (targetUserDoc.getString("currentHubId") == hubId) {
+                    targetUserDocRef.update(
+                        mapOf(
+                            "currentHubId" to null,
+                            "currentHiveCode" to null,
+                            "hubName" to null
+                        )
+                    ).await()
+                }
+            } catch (_: Exception) {}
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Deletes a child profile and cleans up associated medications, reminders, and activity events.
+     * Allowed for Hub Creator, child creator, or reminder-responsible member.
+     */
+    suspend fun deleteChildProfile(hubId: String, childId: String, childName: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val currentUser = FirebaseAuthService.Instance.currentUser
+            ?: return@withContext Result.failure(IllegalStateException("Not authenticated"))
+        try {
+            val firestore = FirebaseFirestore.getInstance()
+            val hubDocRef = firestore.collection("family_hubs").document(hubId)
+            val hubDoc = hubDocRef.get().await()
+            if (!hubDoc.exists()) {
+                return@withContext Result.failure(IllegalStateException("Hub does not exist"))
+            }
+
+            val childDocRef = hubDocRef.collection("children").document(childId)
+            val childDoc = childDocRef.get().await()
+            if (!childDoc.exists()) {
+                return@withContext Result.failure(IllegalStateException("Child profile does not exist"))
+            }
+
+            val hubCreatorUid = hubDoc.getString("createdByUid") ?: ""
+            val childCreatorUid = childDoc.getString("createdByUid") ?: ""
+            val reminderResponsibleId = childDoc.getString("reminderResponsibleMemberId") ?: ""
+
+            val isHubCreator = hubCreatorUid == currentUser.uid || currentUser.uid == "current_user_local"
+            val isChildCreator = childCreatorUid == currentUser.uid
+            val isReminderResponsible = reminderResponsibleId == currentUser.uid
+
+            if (!isHubCreator && !isChildCreator && !isReminderResponsible) {
+                return@withContext Result.failure(SecurityException("You do not have permission to delete this child profile."))
+            }
+
+            val profile = UserProfileRepository.userProfile.value
+            val actorName = profile?.name ?: "Family Member"
+            val actorAvatar = profile?.avatarType?.name ?: "MALE"
+
+            // 1. Delete child document
+            childDocRef.delete().await()
+
+            // 2. Delete medications associated with this child (recipientId == childId or createdByUid == childId)
+            val medsByRecipient = hubDocRef.collection("medications")
+                .whereEqualTo("recipientId", childId)
+                .get()
+                .await()
+            val medsByCreator = hubDocRef.collection("medications")
+                .whereEqualTo("createdByUid", childId)
+                .get()
+                .await()
+
+            val batch = firestore.batch()
+            val docsToDelete = (medsByRecipient.documents + medsByCreator.documents).distinctBy { it.id }
+            for (doc in docsToDelete) {
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+
+            // 3. Cancel/sync scheduled reminders
+            try {
+                val context = com.example.MedTrackApplication.appContext
+                val currentHub = FamilyHubRepository.currentHub.value
+                val remainingMeds = _medications.value.filter { med -> med.recipientId != childId && med.createdByUid != childId }
+                com.example.reminder.scheduler.MedicationReminderScheduler.syncMedications(
+                    context = context,
+                    hubId = hubId,
+                    medications = remainingMeds,
+                    missedDosageMinutes = currentHub?.missedDosageReminderMinutes ?: 5,
+                    familyNotificationMinutes = currentHub?.familyNotificationReminderMinutes ?: 15
+                )
+            } catch (_: Exception) {}
+
+            // 4. Record activity event CHILD_PROFILE_DELETED
+            com.example.ui.hub.activity.data.HubActivityRepository.recordEvent(
+                hubId = hubId,
+                actorUserId = currentUser.uid,
+                actorName = actorName,
+                actorAvatarType = actorAvatar,
+                eventType = "CHILD_PROFILE_DELETED",
+                targetType = "CHILD",
+                targetId = childId,
+                metadata = mapOf(
+                    "childName" to childName,
+                    "actorName" to actorName
+                )
+            )
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

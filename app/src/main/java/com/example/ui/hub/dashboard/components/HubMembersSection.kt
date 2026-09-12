@@ -3,6 +3,7 @@ package com.example.ui.hub.dashboard.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,6 +63,7 @@ private val ColorSpotShadow = Color(0x10786550)
 @Composable
 fun HubMembersSection(
     members: List<HubMember>,
+    onMemberClick: (HubMember) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -150,6 +152,7 @@ fun HubMembersSection(
                     members.forEachIndexed { index, member ->
                         MemberRowItem(
                             member = member,
+                            onClick = { onMemberClick(member) },
                             modifier = Modifier.testTag("hub_member_row_${member.id}")
                         )
 
@@ -173,6 +176,7 @@ fun HubMembersSection(
 @Composable
 private fun MemberRowItem(
     member: HubMember,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val roleLabel = when {
@@ -196,6 +200,7 @@ private fun MemberRowItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 11.dp, vertical = 6.dp)
             .semantics { contentDescription = "${member.name}, role $roleLabel" },
         verticalAlignment = Alignment.CenterVertically,

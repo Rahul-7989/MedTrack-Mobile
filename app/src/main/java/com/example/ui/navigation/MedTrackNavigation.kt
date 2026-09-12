@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -53,6 +54,7 @@ object MedTrackDestinations {
     const val JOIN_FAMILY_HUB = "join_family_hub"
     const val WAITING_ROOM = "waiting_room"
     const val FAMILY_HIVE = "family_hive"
+    const val MEDICATION_HISTORY = "medication_history"
 }
 
 /**
@@ -404,8 +406,22 @@ fun MedTrackNavHost(
                 onNavigateToProfile = {
                     navController.navigate(MedTrackDestinations.PROFILE)
                 },
+                onNavigateToMedicationHistory = {
+                    navController.navigate(MedTrackDestinations.MEDICATION_HISTORY)
+                },
                 onSignOut = {
                     performLogout()
+                }
+            )
+        }
+
+        composable(route = MedTrackDestinations.MEDICATION_HISTORY) {
+            val currentHub = com.example.ui.hub.data.FamilyHubRepository.currentHub.collectAsState().value
+            val hubId = currentHub?.hubId.orEmpty()
+            com.example.ui.hub.activity.MedicationHistoryScreen(
+                hubId = hubId,
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }

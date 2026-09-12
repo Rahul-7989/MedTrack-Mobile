@@ -35,12 +35,11 @@ private val ColorDarkWarmText = DarkWarmText
  */
 @Composable
 fun MedicationHistoryButton(
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     OutlinedButton(
-        onClick = {
-            // Intentional placeholder: non-functional per specifications
-        },
+        onClick = onClick,
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.2.dp, ColorBorderWarm),
         colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(

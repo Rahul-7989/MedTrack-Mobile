@@ -21,7 +21,9 @@ data class UserHubSummary(
     val role: HubUserRole,
     val createdByUid: String?,
     val missedDosageReminderMinutes: Int = 5,
-    val familyNotificationReminderMinutes: Int = 10
+    val familyNotificationReminderMinutes: Int = 10,
+    val membersCount: Int = 1,
+    val approvedAdultMembers: List<com.example.ui.hub.dashboard.model.HubMember> = emptyList()
 )
 
 /**
@@ -35,6 +37,7 @@ data class ChildProfileData(
     val avatarType: ProfileAvatarType = ProfileAvatarType.CHILD_MALE,
     val reminderResponsibleMemberId: String = "",
     val reminderResponsibleMemberName: String = "",
+    val createdByUid: String = "",
     val createdAt: Long = System.currentTimeMillis()
 )
 

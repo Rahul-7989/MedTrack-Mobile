@@ -6,7 +6,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,7 +24,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -39,6 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -48,13 +54,17 @@ import com.example.data.auth.FirebaseAuthService
 import com.example.ui.hub.components.HubBackButton
 import com.example.ui.hub.dashboard.model.HubMember
 import com.example.ui.hub.data.FamilyHubRepository
+import com.example.ui.splash.MedTrackSplashScreen
 import com.example.ui.profile.components.CreateChildProfileModal
+import com.example.ui.profile.components.DeleteHubModal
+import com.example.ui.profile.components.LeaveHubModal
 import com.example.ui.profile.components.ProfileChildrenSection
 import com.example.ui.profile.components.ProfileEditSection
 import com.example.ui.profile.components.ProfileFamilyHubsSection
 import com.example.ui.profile.components.ProfileHeaderSection
 import com.example.ui.profile.components.ProfileLogoutSection
 import com.example.ui.profile.components.ProfileReminderAlertsSection
+import com.example.ui.profile.components.TransferCreatorModal
 import com.example.ui.profile.data.ProfileRepository
 import com.example.ui.profile.model.ChildProfileData
 import com.example.ui.profile.model.UserHubSummary
@@ -117,6 +127,7 @@ fun ProfileScreen(
     var userHubs by remember { mutableStateOf<List<UserHubSummary>>(emptyList()) }
     var selectedHubForAlerts by remember { mutableStateOf<UserHubSummary?>(null) }
     var isPageLoaded by remember { mutableStateOf(false) }
+    var profileLoadError by remember { mutableStateOf<String?>(null) }
 
     // Children Profiles State
     var childrenProfiles by remember { mutableStateOf<List<ChildProfileData>>(emptyList()) }
@@ -125,6 +136,93 @@ fun ProfileScreen(
     var isCreatingChild by remember { mutableStateOf(false) }
     var createChildErrorMessage by remember { mutableStateOf<String?>(null) }
 
+    // Hub Management State (Delete, Leave, Transfer Creator)
+    var hubToDelete by remember { mutableStateOf<UserHubSummary?>(null) }
+    var hubToLeave by remember { mutableStateOf<UserHubSummary?>(null) }
+    var hubToTransferAndLeave by remember { mutableStateOf<UserHubSummary?>(null) }
+    var isHubActionRunning by remember { mutableStateOf(false) }
+    var hubActionErrorMessage by remember { mutableStateOf<String?>(null) }
+    var eligibleMembersForTransfer by remember { mutableStateOf<List<HubMember>>(emptyList()) }
+
+    fun handleDeleteHub(hub: UserHubSummary) {
+        hubActionErrorMessage = null
+        hubToDelete = hub
+    }
+
+    fun handleLeaveHub(hub: UserHubSummary) {
+        hubActionErrorMessage = null
+        val isCreator = hub.role == com.example.ui.profile.model.HubUserRole.CREATOR
+        val hasOtherMembers = hub.membersCount > 1
+        if (isCreator && hasOtherMembers) {
+            coroutineScope.launch {
+                isHubActionRunning = true
+                val members = ProfileRepository.loadHubApprovedMembers(hub.hubId).filter { it.id != currentUser?.uid }
+                eligibleMembersForTransfer = members
+                isHubActionRunning = false
+                hubToTransferAndLeave = hub
+            }
+        } else {
+            hubToLeave = hub
+        }
+    }
+
+    fun confirmDeleteHub() {
+        val hub = hubToDelete ?: return
+        isHubActionRunning = true
+        hubActionErrorMessage = null
+        coroutineScope.launch {
+            val result = ProfileRepository.deleteHub(hub.hubId)
+            isHubActionRunning = false
+            if (result.isSuccess) {
+                hubToDelete = null
+                val hubs = ProfileRepository.loadUserHubs()
+                userHubs = hubs
+                selectedHubForAlerts = hubs.firstOrNull()
+                snackbarHostState.showSnackbar("Hub deleted successfully")
+            } else {
+                hubActionErrorMessage = result.exceptionOrNull()?.localizedMessage ?: "Failed to delete hub"
+            }
+        }
+    }
+
+    fun confirmLeaveHub() {
+        val hub = hubToLeave ?: return
+        isHubActionRunning = true
+        hubActionErrorMessage = null
+        coroutineScope.launch {
+            val result = ProfileRepository.leaveHub(hub.hubId)
+            isHubActionRunning = false
+            if (result.isSuccess) {
+                hubToLeave = null
+                val hubs = ProfileRepository.loadUserHubs()
+                userHubs = hubs
+                selectedHubForAlerts = hubs.firstOrNull()
+                snackbarHostState.showSnackbar("You left the hub")
+            } else {
+                hubActionErrorMessage = result.exceptionOrNull()?.localizedMessage ?: "Failed to leave hub"
+            }
+        }
+    }
+
+    fun confirmTransferAndLeave(newCreatorId: String) {
+        val hub = hubToTransferAndLeave ?: return
+        isHubActionRunning = true
+        hubActionErrorMessage = null
+        coroutineScope.launch {
+            val result = ProfileRepository.transferCreatorAndLeave(hub.hubId, newCreatorId)
+            isHubActionRunning = false
+            if (result.isSuccess) {
+                hubToTransferAndLeave = null
+                val hubs = ProfileRepository.loadUserHubs()
+                userHubs = hubs
+                selectedHubForAlerts = hubs.firstOrNull()
+                snackbarHostState.showSnackbar("Transferred ownership and left hub")
+            } else {
+                hubActionErrorMessage = result.exceptionOrNull()?.localizedMessage ?: "Failed to transfer ownership"
+            }
+        }
+    }
+
     val pageAlpha by animateFloatAsState(
         targetValue = if (isPageLoaded) 1f else 0f,
         animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
@@ -132,26 +230,79 @@ fun ProfileScreen(
     )
 
     // Load profile and hubs on entry
-    LaunchedEffect(Unit) {
-        UserProfileRepository.loadProfile()
-        val hubs = ProfileRepository.loadUserHubs()
-        userHubs = hubs
+    fun loadProfileData() {
+        coroutineScope.launch {
+            profileLoadError = null
+            try {
+                UserProfileRepository.loadProfile()
+                val hubs = ProfileRepository.loadUserHubs()
+                userHubs = hubs
 
-        // Default selected hub for alerts
-        val activeHub = FamilyHubRepository.currentHub.value
-        selectedHubForAlerts = hubs.find { it.hubId == activeHub?.hubId } ?: hubs.firstOrNull()
+                // Default selected hub for alerts
+                val activeHub = FamilyHubRepository.currentHub.value
+                selectedHubForAlerts = hubs.find { it.hubId == activeHub?.hubId } ?: hubs.firstOrNull()
 
-        // Sync edit form fields with loaded profile
-        val profile = UserProfileRepository.userProfile.value
-        if (profile != null) {
-            editName = profile.name
-            editGender = profile.gender
-            editAge = profile.age
-            editAboutMe = profile.aboutMe.orEmpty()
-            isAboutMeExpanded = !profile.aboutMe.isNullOrBlank()
+                // Sync edit form fields with loaded profile
+                val profile = UserProfileRepository.userProfile.value
+                if (profile != null) {
+                    editName = profile.name
+                    editGender = profile.gender
+                    editAge = profile.age
+                    editAboutMe = profile.aboutMe.orEmpty()
+                    isAboutMeExpanded = !profile.aboutMe.isNullOrBlank()
+                }
+
+                isPageLoaded = true
+            } catch (e: Exception) {
+                profileLoadError = "Couldn't load your profile. Please try again."
+                isPageLoaded = true
+            }
         }
+    }
 
-        isPageLoaded = true
+    LaunchedEffect(Unit) {
+        loadProfileData()
+    }
+
+    if (!isPageLoaded) {
+        MedTrackSplashScreen(skipNavigation = true)
+        return
+    }
+
+    if (profileLoadError != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(WarmIvory)
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = profileLoadError!!,
+                    fontFamily = SoraFontFamily,
+                    fontSize = 14.sp,
+                    color = com.example.ui.theme.MutedTerracotta,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                androidx.compose.material3.Button(
+                    onClick = {
+                        isPageLoaded = false
+                        loadProfileData()
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = com.example.ui.theme.MutedTerracotta
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Retry", fontFamily = SoraFontFamily, color = WarmIvory)
+                }
+            }
+        }
+        return
     }
 
     // Load children and approved members whenever active hub selection changes
@@ -342,6 +493,99 @@ fun ProfileScreen(
                         }
                     )
 
+                    // Profile Details Card (Age, Gender, About Me when not editing)
+                    if (!isEditingProfile && userProfile != null) {
+                        val ageDisplay = when {
+                            userProfile!!.age >= 70 -> "70+ years"
+                            else -> "${userProfile!!.age} years"
+                        }
+                        val genderDisplay = when (userProfile!!.gender) {
+                            ProfileGender.MALE -> "Male"
+                            ProfileGender.FEMALE -> "Female"
+                            else -> "Prefer not to say"
+                        }
+                        val aboutMeText = userProfile!!.aboutMe
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .shadow(
+                                    elevation = 1.5.dp,
+                                    shape = RoundedCornerShape(13.dp),
+                                    ambientColor = Color(0x0C9C876E),
+                                    spotColor = Color(0x10786550)
+                                )
+                                .clip(RoundedCornerShape(13.dp))
+                                .background(WarmIvory)
+                                .border(BorderStroke(1.dp, Color(0xFFE4D5C2)), RoundedCornerShape(13.dp))
+                                .padding(16.dp)
+                                .testTag("profile_details_card"),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Age",
+                                        fontFamily = SoraFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = DustyTeal
+                                    )
+                                    Text(
+                                        text = ageDisplay,
+                                        fontFamily = SoraFontFamily,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.5.sp,
+                                        color = DarkWarmText
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = "Gender",
+                                        fontFamily = SoraFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = DustyTeal
+                                    )
+                                    Text(
+                                        text = genderDisplay,
+                                        fontFamily = SoraFontFamily,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.5.sp,
+                                        color = DarkWarmText
+                                    )
+                                }
+                            }
+
+                            if (!aboutMeText.isNullOrBlank()) {
+                                androidx.compose.material3.HorizontalDivider(
+                                    color = Color(0xFFE4D5C2).copy(alpha = 0.5f),
+                                    thickness = 0.8.dp
+                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        text = "About Me",
+                                        fontFamily = SoraFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = DustyTeal
+                                    )
+                                    Text(
+                                        text = aboutMeText,
+                                        fontFamily = SoraFontFamily,
+                                        fontWeight = FontWeight.Normal,
+                                        fontSize = 13.sp,
+                                        color = DarkWarmText
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // 2. Edit Profile Form (when active)
                     AnimatedVisibility(
                         visible = isEditingProfile,
@@ -388,7 +632,9 @@ fun ProfileScreen(
                                 ProfileRepository.selectAndOpenHub(selectedHub)
                                 onNavigateToHubDashboard(selectedHub.hubId)
                             }
-                        }
+                        },
+                        onDeleteHubClick = ::handleDeleteHub,
+                        onLeaveHubClick = ::handleLeaveHub
                     )
 
                     // 4. Reminder Alerts Section
@@ -434,6 +680,40 @@ fun ProfileScreen(
             onCreateChild = ::handleCreateChildProfile,
             isSubmitting = isCreatingChild,
             errorMessage = createChildErrorMessage
+        )
+    }
+
+    // Modal: Delete Hub
+    if (hubToDelete != null) {
+        DeleteHubModal(
+            hubName = hubToDelete!!.name,
+            onDismiss = { hubToDelete = null; hubActionErrorMessage = null },
+            onConfirmDelete = ::confirmDeleteHub,
+            isDeleting = isHubActionRunning,
+            errorMessage = hubActionErrorMessage
+        )
+    }
+
+    // Modal: Leave Hub
+    if (hubToLeave != null) {
+        LeaveHubModal(
+            hubName = hubToLeave!!.name,
+            onDismiss = { hubToLeave = null; hubActionErrorMessage = null },
+            onConfirmLeave = ::confirmLeaveHub,
+            isLeaving = isHubActionRunning,
+            errorMessage = hubActionErrorMessage
+        )
+    }
+
+    // Modal: Transfer Creator & Leave Hub
+    if (hubToTransferAndLeave != null) {
+        TransferCreatorModal(
+            hubName = hubToTransferAndLeave!!.name,
+            eligibleMembers = eligibleMembersForTransfer,
+            onDismiss = { hubToTransferAndLeave = null; hubActionErrorMessage = null },
+            onConfirmTransferAndLeave = ::confirmTransferAndLeave,
+            isTransferring = isHubActionRunning,
+            errorMessage = hubActionErrorMessage
         )
     }
 }
