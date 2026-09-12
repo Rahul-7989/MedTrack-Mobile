@@ -26,27 +26,10 @@ Imagine someone relies on a medication reminder app for an important medicine. T
 
 <div align="center">
 
-<table border="0" cellspacing="0" cellpadding="8">
-<tr>
-
-<td align="center">
-<img src="medtrack.g.ui/hub_selection.png" alt="Hub Selection" width="200">
-</td>
-
-<td align="center">
-<img src="medtrack.g.ui/create_hub.png" alt="Create Hub" width="200">
-</td>
-
-<td align="center">
-<img src="medtrack.g.ui/join_hub.png" alt="Join Hub" width="200">
-</td>
-
-<td align="center">
-<img src="medtrack.g.ui/medication_card.png" alt="Medication Card" width="200">
-</td>
-
-</tr>
-</table>
+<img src="medtrack.g.ui/hub_selection.png" alt="Hub Selection" width="23%">
+<img src="medtrack.g.ui/create_hub.png" alt="Create Hub" width="23%">
+<img src="medtrack.g.ui/join_hub.png" alt="Join Hub" width="23%">
+<img src="medtrack.g.ui/medication_card.png" alt="Medication Card" width="23%">
 
 </div>
 
