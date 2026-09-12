@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="medtrack.g.ui/main.png" alt="MedTrack" width="75%">
+<img src="medtrack.g.ui/main.png" alt="MedTrack" width="80%">
 
 <hr>
 
@@ -26,11 +26,44 @@ Imagine someone relies on a medication reminder app for an important medicine. T
 
 <div align="center">
 
-<img src="medtrack.g.ui/hub_selection.png" alt="Hub Selection" width="23%">
-<img src="medtrack.g.ui/create_hub.png" alt="Create Hub" width="23%">
-<img src="medtrack.g.ui/join_hub.png" alt="Join Hub" width="23%">
-<img src="medtrack.g.ui/medication_card.png" alt="Medication Card" width="23%">
+<img src="medtrack.g.ui/hub_selection.png" alt="Hub Selection" width="24%">
+<img src="medtrack.g.ui/create_hub.png" alt="Create Hub" width="24%">
+<img src="medtrack.g.ui/join_hub.png" alt="Join Hub" width="24%">
+<img src="medtrack.g.ui/medication_card.png" alt="Medication Card" width="24%">
+
+<br><br>
+
+<img src="medtrack.g.ui/smart_voice_memo.png" alt="Smart Voice Memo" width="24%">
+<img src="medtrack.g.ui/medication_history.png" alt="Medication History" width="24%">
+<img src="medtrack.g.ui/child_profile.png" alt="Child Profile" width="24%">
 
 </div>
 
 <hr>
+
+## Additional Features
+
+- **Authentication**
+  - Email/password signup and login
+  - Email verification and password reset
+
+- **Profile Management**
+  - Edit personal details, avatar, age, gender, and About Me
+
+- **Hub Management**
+  - Multiple family hubs
+  - Hub Codes and approval-based joining
+  - Member removal, leaving, Creator transfer, and hub deletion
+
+- **Medication Reminders**
+  - 24-hour, 48-hour, and custom cycles
+  - Missed-dose and family escalation reminders
+
+- **Permissions**
+  - Role-based access for medication and hub management
+
+- **Real-Time Sync**
+  - Membership, medication, and status changes sync across devices
+
+- **Android Notifications**
+  - System-level medication reminders with action support
