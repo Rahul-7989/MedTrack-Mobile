@@ -1,31 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:pathData="M0,0h108v108h-108z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="0"
-                android:startY="0"
-                android:endX="108"
-                android:endY="108"
-                android:type="linear">
-                <item android:color="#FAF4EC" android:offset="0.0" />
-                <item android:color="#F3E6D5" android:offset="0.6" />
-                <item android:color="#EAD9C4" android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
-    <!-- Soft organic pale teal background accent -->
-    <path
-        android:fillColor="#33A9CED0"
-        android:pathData="M78,14 C92,20 102,36 98,52 C94,68 80,74 68,70 C56,66 50,50 56,34 C62,18 68,10 78,14 Z" />
-    <!-- Soft warm amber accent -->
-    <path
-        android:fillColor="#22E5A23C"
-        android:pathData="M18,65 C28,55 42,60 48,72 C54,84 46,96 34,98 C22,100 10,92 12,80 C14,70 12,72 18,65 Z" />
+        android:fillColor="#FFFFFF"
+        android:pathData="M0,0h108v108h-108z" />
 </vector>

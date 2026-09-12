@@ -309,7 +309,7 @@ object HubDashboardRepository {
     }
 
     /**
-     * Detaches all active Firestore snapshot listeners.
+     * Detaches all active Firestore snapshot listeners and clears all transient hub state.
      */
     fun detachHubListeners() {
         try { medicationsListener?.remove() } catch (_: Exception) {}
@@ -321,6 +321,15 @@ object HubDashboardRepository {
         childrenListener = null
         joinRequestsListener = null
         activeHubId = null
+    }
+
+    fun clearHubState() {
+        detachHubListeners()
+        _medications.value = emptyList()
+        _hubMembers.value = emptyList()
+        _pendingJoinRequests.value = emptyList()
+        rawAdultMembers = emptyList()
+        rawChildMembers = emptyList()
     }
 
     /**
@@ -436,6 +445,28 @@ object HubDashboardRepository {
      * Marks a medication as taken or un-taken with timestamp and syncs to Firestore.
      */
     fun toggleMedicationTaken(medicationId: String) {
+        val currentUid = getCurrentUserId()
+        val targetItem = _medications.value.find { it.id == medicationId } ?: return
+
+        // Enforce permission rules:
+        // Adult medication: ONLY the assigned adult (recipientId) can mark as taken.
+        // Child medication: Any approved Hub member can mark as taken.
+        val canMark = if (targetItem.isChildRecipient) {
+            true
+        } else {
+            val cur = currentUid.trim()
+            val rec = targetItem.recipientId.trim()
+            if (cur == "current_user_local" || rec == "current_user_local" || cur.isBlank() || rec.isBlank()) {
+                true
+            } else {
+                cur == rec
+            }
+        }
+
+        if (!canMark) {
+            return
+        }
+
         val now = System.currentTimeMillis()
         val nowFormatted = getCurrentFormattedTime()
         var updatedItem: MedicationItem? = null

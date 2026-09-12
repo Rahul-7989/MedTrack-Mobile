@@ -575,11 +575,8 @@ object FamilyHubRepository {
             } catch (_: Exception) {}
         }
 
-        if (!isAlreadyMember) {
-            val approvedMembers = HubDashboardRepository.hubMembers.value
-            if (approvedMembers.any { it.id == currentUid }) {
-                isAlreadyMember = true
-            }
+        if (!isAlreadyMember && isLocalHubMember(foundHub.hubId, currentUid)) {
+            isAlreadyMember = true
         }
 
         if (isAlreadyMember) {
@@ -616,6 +613,21 @@ object FamilyHubRepository {
         }
 
         if (pendingRequestId != null) {
+            if (currentUser != null) {
+                try {
+                    val firestore = FirebaseFirestore.getInstance()
+                    firestore.collection("users").document(currentUid).set(
+                        mapOf(
+                            "pendingJoinStatus" to "PENDING",
+                            "pendingJoinHubId" to foundHub.hubId,
+                            "pendingJoinHubName" to foundHub.name,
+                            "pendingJoinRequestId" to pendingRequestId,
+                            "updatedAt" to System.currentTimeMillis()
+                        ),
+                        SetOptions.merge()
+                    )
+                } catch (_: Exception) {}
+            }
             return@withContext HubJoinValidationResult.SuccessPending(foundHub, pendingRequestId)
         }
 
@@ -641,6 +653,17 @@ object FamilyHubRepository {
                     .document(requestId)
                     .set(requestMap)
                     .await()
+
+                firestore.collection("users").document(currentUid).set(
+                    mapOf(
+                        "pendingJoinStatus" to "PENDING",
+                        "pendingJoinHubId" to foundHub.hubId,
+                        "pendingJoinHubName" to foundHub.name,
+                        "pendingJoinRequestId" to requestId,
+                        "updatedAt" to System.currentTimeMillis()
+                    ),
+                    SetOptions.merge()
+                )
             } catch (_: Exception) {}
         }
 
@@ -674,6 +697,7 @@ object FamilyHubRepository {
      * Cancels a pending join request: updates backend status to CANCELLED and deletes/removes it.
      */
     suspend fun cancelJoinRequest(hubId: String, requestId: String): Boolean = withContext(Dispatchers.IO) {
+        val currentUser = FirebaseAuthService.Instance.currentUser
         try {
             val firestore = FirebaseFirestore.getInstance()
             firestore.collection("family_hubs")
@@ -689,6 +713,18 @@ object FamilyHubRepository {
                 .document(requestId)
                 .delete()
                 .await()
+
+            if (currentUser != null) {
+                firestore.collection("users").document(currentUser.uid).set(
+                    mapOf(
+                        "pendingJoinStatus" to null,
+                        "pendingJoinHubId" to null,
+                        "pendingJoinHubName" to null,
+                        "pendingJoinRequestId" to null
+                    ),
+                    SetOptions.merge()
+                )
+            }
         } catch (_: Exception) {}
 
         localJoinRequests[hubId]?.remove(requestId)
@@ -764,6 +800,10 @@ object FamilyHubRepository {
                 if (currentUser != null) {
                     firestore.collection("users").document(currentUser.uid).set(
                         mapOf(
+                            "pendingJoinStatus" to null,
+                            "pendingJoinHubId" to null,
+                            "pendingJoinHubName" to null,
+                            "pendingJoinRequestId" to null,
                             "currentHubId" to hubId,
                             "currentHiveCode" to code,
                             "hubName" to name,

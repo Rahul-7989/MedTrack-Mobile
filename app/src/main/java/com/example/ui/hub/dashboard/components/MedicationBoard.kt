@@ -139,6 +139,7 @@ fun MedicationBoard(
                         )
                         MedicationCard(
                             medication = med,
+                            currentUserId = currentUserId,
                             isCreator = isCreator,
                             onToggleTaken = { onToggleTaken(med.id) },
                             onCardClick = { onCardClick(med) },

@@ -133,8 +133,8 @@ fun HubDashboardHeader(
                     text = hubName,
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.ExtraBold, // ExtraBold 800
-                    fontSize = 26.sp,
-                    lineHeight = 31.sp,
+                    fontSize = 32.sp,
+                    lineHeight = 38.sp,
                     color = ColorDarkWarmText,
                     modifier = Modifier.testTag("hub_dashboard_title")
                 )
@@ -198,9 +198,10 @@ fun HubDashboardHeader(
                 text = "HUB CODE",
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 9.sp,
+                fontSize = 10.5.sp,
+                lineHeight = 13.sp,
                 letterSpacing = 1.4.sp,
-                color = ColorTextMuted.copy(alpha = 0.8f)
+                color = ColorTextMuted.copy(alpha = 0.85f)
             )
 
             // Copyable Hub Code Box on Warm Cream Surface with IBM Plex Mono font

@@ -55,16 +55,18 @@ fun HubDashboardTimeBar(
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 9.5.sp,
+                lineHeight = 11.sp,
                 letterSpacing = 1.2.sp,
                 color = ColorTextMuted,
                 modifier = Modifier.testTag("hub_dashboard_date_label")
             )
-            Spacer(modifier = Modifier.height(1.dp))
+            Spacer(modifier = Modifier.height((-2).dp))
             Text(
                 text = formattedTime,
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
+                lineHeight = 16.sp,
                 color = ColorDarkWarmText,
                 modifier = Modifier.testTag("hub_dashboard_current_time_text")
             )

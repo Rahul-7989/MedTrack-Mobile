@@ -78,6 +78,7 @@ private val ColorSpotShadow = Color(0x16786550)
 @Composable
 fun MedicationCard(
     medication: MedicationItem,
+    currentUserId: String,
     isCreator: Boolean,
     onToggleTaken: () -> Unit,
     onCardClick: () -> Unit = {},
@@ -339,68 +340,137 @@ fun MedicationCard(
                 }
 
                 // Right: Mark as taken action / Taken state (compact status/action button)
-                Box(
-                    modifier = Modifier
-                        .scale(if (isTakenPressed) 0.96f else 1.0f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            if (medication.isTakenToday) ColorPaleTealBg else ColorDustyTeal.copy(alpha = 0.10f)
-                        )
-                        .border(
-                            BorderStroke(
-                                1.dp,
-                                if (medication.isTakenToday) ColorDustyTeal.copy(alpha = 0.4f) else ColorDustyTeal.copy(alpha = 0.35f)
-                            ),
-                            RoundedCornerShape(8.dp)
-                        )
-                        .clickable(
-                            interactionSource = takenButtonInteractionSource,
-                            indication = null,
-                            role = Role.Button,
-                            onClick = onToggleTaken
-                        )
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .semantics {
-                            contentDescription = if (medication.isTakenToday) "Taken, tap to undo" else "Mark as taken"
-                        }
-                        .testTag("mark_as_taken_button_${medication.id}"),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                val canMarkTaken = if (medication.isChildRecipient) {
+                    true
+                } else {
+                    val cur = currentUserId.trim()
+                    val rec = medication.recipientId.trim()
+                    if (cur == "current_user_local" || rec == "current_user_local" || cur.isBlank() || rec.isBlank()) {
+                        true
+                    } else {
+                        cur == rec
+                    }
+                }
+
+                if (canMarkTaken) {
+                    Box(
+                        modifier = Modifier
+                            .scale(if (isTakenPressed) 0.96f else 1.0f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (medication.isTakenToday) ColorPaleTealBg else ColorDustyTeal.copy(alpha = 0.10f)
+                            )
+                            .border(
+                                BorderStroke(
+                                    1.dp,
+                                    if (medication.isTakenToday) ColorDustyTeal.copy(alpha = 0.4f) else ColorDustyTeal.copy(alpha = 0.35f)
+                                ),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .clickable(
+                                interactionSource = takenButtonInteractionSource,
+                                indication = null,
+                                role = Role.Button,
+                                onClick = onToggleTaken
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .semantics {
+                                contentDescription = if (medication.isTakenToday) "Taken, tap to undo" else "Mark as taken"
+                            }
+                            .testTag("mark_as_taken_button_${medication.id}"),
+                        contentAlignment = Alignment.Center
                     ) {
-                        if (medication.isTakenToday) {
-                            Icon(
-                                imageVector = Icons.Outlined.Check,
-                                contentDescription = null,
-                                tint = ColorDustyTeal,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Text(
-                                text = "Taken",
-                                fontFamily = SoraFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 10.5.sp,
-                                color = ColorDustyTeal
-                            )
-                            if (!medication.takenAtTime.isNullOrBlank()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (medication.isTakenToday) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Check,
+                                    contentDescription = null,
+                                    tint = ColorDustyTeal,
+                                    modifier = Modifier.size(12.dp)
+                                )
                                 Text(
-                                    text = medication.takenAtTime,
+                                    text = "Taken",
                                     fontFamily = SoraFontFamily,
-                                    fontWeight = FontWeight.Normal,
-                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.5.sp,
+                                    color = ColorDustyTeal
+                                )
+                                if (!medication.takenAtTime.isNullOrBlank()) {
+                                    Text(
+                                        text = medication.takenAtTime,
+                                        fontFamily = SoraFontFamily,
+                                        fontWeight = FontWeight.Normal,
+                                        fontSize = 9.sp,
+                                        color = ColorTextMuted
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "Mark as taken",
+                                    fontFamily = SoraFontFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 10.sp,
+                                    color = ColorDustyTeal
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Non-interactive read-only status for other users viewing adult medication
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (medication.isTakenToday) ColorPaleTealBg else ColorWarmIvory)
+                            .border(
+                                BorderStroke(
+                                    1.dp,
+                                    if (medication.isTakenToday) ColorDustyTeal.copy(alpha = 0.4f) else ColorBorderWarm
+                                ),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .testTag("read_only_status_${medication.id}"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (medication.isTakenToday) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Check,
+                                    contentDescription = null,
+                                    tint = ColorDustyTeal,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = "Taken",
+                                    fontFamily = SoraFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.5.sp,
+                                    color = ColorDustyTeal
+                                )
+                                if (!medication.takenAtTime.isNullOrBlank()) {
+                                    Text(
+                                        text = medication.takenAtTime,
+                                        fontFamily = SoraFontFamily,
+                                        fontWeight = FontWeight.Normal,
+                                        fontSize = 9.sp,
+                                        color = ColorTextMuted
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "Not taken yet",
+                                    fontFamily = SoraFontFamily,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 10.sp,
                                     color = ColorTextMuted
                                 )
                             }
-                        } else {
-                            Text(
-                                text = "Mark as taken",
-                                fontFamily = SoraFontFamily,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 10.sp,
-                                color = ColorDustyTeal
-                            )
                         }
                     }
                 }

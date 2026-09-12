@@ -73,6 +73,7 @@ fun MedTrackNavHost(
         FirebaseAuthService.Instance.signOut()
         UserProfileRepository.clearProfile()
         FamilyHubRepository.clearHub()
+        com.example.ui.hub.dashboard.data.HubDashboardRepository.clearHubState()
         navController.navigate(MedTrackDestinations.HOME) {
             popUpTo(0) { inclusive = true }
             launchSingleTop = true

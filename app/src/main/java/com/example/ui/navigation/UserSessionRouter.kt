@@ -4,6 +4,8 @@ import android.net.Uri
 import com.example.data.auth.FirebaseAuthService
 import com.example.ui.hub.data.FamilyHubRepository
 import com.example.ui.profilesetup.data.UserProfileRepository
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -15,6 +17,7 @@ sealed class UserTargetDestination {
     data class EmailVerification(val email: String?) : UserTargetDestination()
     object ProfileSetup : UserTargetDestination()
     object HubSelection : UserTargetDestination()
+    data class WaitingRoom(val hubId: String, val hubName: String, val requestId: String) : UserTargetDestination()
     object FamilyHive : UserTargetDestination()
     object Home : UserTargetDestination()
 }
@@ -24,8 +27,9 @@ sealed class UserTargetDestination {
  * 1. If not logged in -> Home / Login
  * 2. If registered but email not verified -> Email Verification Screen
  * 3. If registered and email verified, but profile not created -> Profile Setup Screen
- * 4. If registered, email verified, profile created, but not in a hub -> Hub Selection Screen
- * 5. If registered, email verified, profile created, and in a hub -> Respective Family Hive
+ * 4. If registered, email verified, profile created, but has pending join request -> Waiting Room
+ * 5. If registered, email verified, profile created, but not in a hub -> Hub Selection Screen
+ * 6. If registered, email verified, profile created, and in a hub -> Respective Family Hive
  */
 object UserSessionRouter {
 
@@ -49,6 +53,64 @@ object UserSessionRouter {
         if (profile == null || !profile.isCompleted || profile.name.isBlank()) {
             return@withContext UserTargetDestination.ProfileSetup
         }
+
+        // Rule 2.5: Check for pending join request
+        try {
+            val firestore = FirebaseFirestore.getInstance()
+            val userDoc = firestore.collection("users").document(currentUser.uid).get().await()
+            val pendingStatus = userDoc?.getString("pendingJoinStatus")
+            val pendingHubId = userDoc?.getString("pendingJoinHubId")
+            val pendingHubName = userDoc?.getString("pendingJoinHubName") ?: "Family Hub"
+            val pendingRequestId = userDoc?.getString("pendingJoinRequestId")
+
+            if (pendingStatus == "PENDING" && !pendingHubId.isNullOrBlank() && !pendingRequestId.isNullOrBlank()) {
+                val reqDoc = firestore.collection("family_hubs")
+                    .document(pendingHubId)
+                    .collection("join_requests")
+                    .document(pendingRequestId)
+                    .get()
+                    .await()
+
+                if (reqDoc != null && reqDoc.exists()) {
+                    val actualStatus = reqDoc.getString("status") ?: "PENDING"
+                    if (actualStatus == "ACCEPTED") {
+                        FamilyHubRepository.onJoinRequestAccepted(pendingHubId, pendingHubName)
+                        firestore.collection("users").document(currentUser.uid).set(
+                            mapOf(
+                                "pendingJoinStatus" to null,
+                                "pendingJoinHubId" to null,
+                                "pendingJoinHubName" to null,
+                                "pendingJoinRequestId" to null
+                            ),
+                            SetOptions.merge()
+                        )
+                        return@withContext UserTargetDestination.FamilyHive
+                    } else if (actualStatus == "REJECTED" || actualStatus == "CANCELLED") {
+                        firestore.collection("users").document(currentUser.uid).set(
+                            mapOf(
+                                "pendingJoinStatus" to null,
+                                "pendingJoinHubId" to null,
+                                "pendingJoinHubName" to null,
+                                "pendingJoinRequestId" to null
+                            ),
+                            SetOptions.merge()
+                        )
+                    } else {
+                        return@withContext UserTargetDestination.WaitingRoom(pendingHubId, pendingHubName, pendingRequestId)
+                    }
+                } else {
+                    firestore.collection("users").document(currentUser.uid).set(
+                        mapOf(
+                            "pendingJoinStatus" to null,
+                            "pendingJoinHubId" to null,
+                            "pendingJoinHubName" to null,
+                            "pendingJoinRequestId" to null
+                        ),
+                        SetOptions.merge()
+                    )
+                }
+            }
+        } catch (_: Exception) {}
 
         // Rule 3: Not in any hub
         val hub = FamilyHubRepository.loadUserHub()
@@ -75,6 +137,10 @@ object UserSessionRouter {
             }
             is UserTargetDestination.ProfileSetup -> MedTrackDestinations.PROFILE_SETUP
             is UserTargetDestination.HubSelection -> MedTrackDestinations.HUB_SELECTION
+            is UserTargetDestination.WaitingRoom -> {
+                val encodedName = Uri.encode(destination.hubName)
+                "${MedTrackDestinations.WAITING_ROOM}?hubId=${destination.hubId}&hubName=$encodedName&requestId=${destination.requestId}"
+            }
             is UserTargetDestination.FamilyHive -> MedTrackDestinations.FAMILY_HIVE
             is UserTargetDestination.Home -> MedTrackDestinations.HOME
         }

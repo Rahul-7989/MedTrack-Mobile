@@ -7,20 +7,20 @@
 
     <!-- 1. Top-Left Medium Hexagon (Warm Amber) -->
     <path
-        android:fillColor="#E5A23C"
-        android:pathData="M 208.4,58.4 Q 248.0,35.0 287.6,58.4 L 415.9,134.1 Q 455.5,157.5 455.5,203.5 L 455.5,356.5 Q 455.5,402.5 415.9,425.9 L 287.6,501.6 Q 248.0,525.0 208.4,501.6 L 80.1,425.9 Q 40.5,402.5 40.5,356.5 L 40.5,203.5 Q 40.5,157.5 80.1,134.1 Z" />
+        android:fillColor="#EFA834"
+        android:pathData="M 220.00,51.17 A 56.00,56.00 0 0,1 276.00,51.17 L 432.18,141.33 A 56.00,56.00 0 0,1 460.18,189.83 L 460.18,370.17 A 56.00,56.00 0 0,1 432.18,418.67 L 276.00,508.83 A 56.00,56.00 0 0,1 220.00,508.83 L 63.82,418.67 A 56.00,56.00 0 0,1 35.82,370.17 L 35.82,189.83 A 56.00,56.00 0 0,1 63.82,141.33 Z" />
 
-    <!-- 2. Bottom-Left Small Hexagon (Burnt Apricot) -->
+    <!-- 2. Bottom-Left Small Hexagon (Burnt Terracotta Orange) -->
     <path
-        android:fillColor="#D88B3D"
-        android:pathData="M 191.3,571.3 Q 222.0,552.5 252.7,571.3 L 323.8,614.9 Q 354.5,633.8 354.5,669.8 L 354.5,760.2 Q 354.5,796.2 323.8,815.1 L 252.7,858.7 Q 222.0,877.5 191.3,858.7 L 120.2,815.1 Q 89.5,796.2 89.5,760.2 L 89.5,669.8 Q 89.5,633.8 120.2,614.9 Z" />
+        android:fillColor="#DF752B"
+        android:pathData="M 203.00,563.97 A 38.00,38.00 0 0,1 241.00,563.97 L 343.30,623.03 A 38.00,38.00 0 0,1 362.30,655.94 L 362.30,774.06 A 38.00,38.00 0 0,1 343.30,806.97 L 241.00,866.03 A 38.00,38.00 0 0,1 203.00,866.03 L 100.70,806.97 A 38.00,38.00 0 0,1 81.70,774.06 L 81.70,655.94 A 38.00,38.00 0 0,1 100.70,623.03 Z" />
 
-    <!-- 3. Right Large Hexagon (Dusty Teal) -->
+    <!-- 3. Right Large Hexagon (Muted Cyan/Teal) -->
     <path
-        android:fillColor="#5EA4AA"
-        android:pathData="M 630.8,272.4 Q 675.0,245.0 719.2,272.4 L 920.8,397.6 Q 965.0,425.0 965.0,477.0 L 965.0,733.0 Q 965.0,785.0 920.8,812.4 L 719.2,937.6 Q 675.0,965.0 630.8,937.6 L 429.2,812.4 Q 385.0,785.0 385.0,733.0 L 385.0,477.0 Q 385.0,425.0 429.2,397.6 Z" />
+        android:fillColor="#59AFB5"
+        android:pathData="M 635.00,268.09 A 80.00,80.00 0 0,1 715.00,268.09 L 946.77,401.91 A 80.00,80.00 0 0,1 986.77,471.19 L 986.77,738.81 A 80.00,80.00 0 0,1 946.77,808.09 L 715.00,941.91 A 80.00,80.00 0 0,1 635.00,941.91 L 403.23,808.09 A 80.00,80.00 0 0,1 363.23,738.81 L 363.23,471.19 A 80.00,80.00 0 0,1 403.23,401.91 Z" />
 
-    <!-- 4. Capsule Pill inside Dusty Teal Hexagon (Rotated 45 degrees, centered at 675, 605) -->
+    <!-- 4. Capsule Pill inside Teal Hexagon (Rotated 45 degrees, centered at 675, 605) -->
     <group
         android:pivotX="675"
         android:pivotY="605"
@@ -28,22 +28,22 @@
 
         <!-- Top Half of Capsule (Warm Cream / Off-white) -->
         <path
-            android:fillColor="#FBF5EC"
+            android:fillColor="#FAF6EE"
             android:pathData="M -85,0 L -85,-130 A 85,85 0 0,1 85,-130 L 85,0 Z" />
 
-        <!-- Bottom Half of Capsule (Translucent Pale Teal) -->
+        <!-- Bottom Half of Capsule (Translucent Pale Ice Teal) -->
         <path
-            android:fillColor="#8CBFC2"
+            android:fillColor="#93CBD0"
             android:pathData="M -85,0 L 85,0 L 85,130 A 85,85 0 0,1 -85,130 Z" />
 
         <!-- Reflection Highlight Line on Bottom Half -->
         <path
             android:fillColor="#00000000"
             android:strokeColor="#FFFFFF"
-            android:strokeWidth="13"
+            android:strokeWidth="16"
             android:strokeLineCap="round"
             android:strokeLineJoin="round"
-            android:pathData="M -56,22 L -56,114 Q -56,150 -26,160" />
+            android:pathData="M -55,24 L -55,115 A 55,55 0 0,0 -20,172" />
     </group>
 
 </vector>

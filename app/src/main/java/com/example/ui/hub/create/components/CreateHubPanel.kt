@@ -133,10 +133,10 @@ fun CreateHubPanel(
                 readOnly = isCodeGenerated,
                 placeholder = {
                     Text(
-                        text = "Enter a name for your family hub",
+                        text = "Enter name for your hub",
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.Normal,
-                        fontSize = 14.5.sp,
+                        fontSize = 13.sp,
                         color = ColorTextMuted.copy(alpha = 0.6f)
                     )
                 },

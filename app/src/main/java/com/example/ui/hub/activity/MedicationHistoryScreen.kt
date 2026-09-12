@@ -143,7 +143,7 @@ fun MedicationHistoryScreen(
             .testTag("medication_history_screen"),
         containerColor = ColorWarmIvory,
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
                         text = "MEDICATION HISTORY",
@@ -151,7 +151,8 @@ fun MedicationHistoryScreen(
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 15.sp,
                         color = ColorDarkWarmText,
-                        letterSpacing = 1.2.sp
+                        letterSpacing = 1.2.sp,
+                        textAlign = TextAlign.Center
                     )
                 },
                 navigationIcon = {
@@ -171,7 +172,7 @@ fun MedicationHistoryScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = ColorWarmIvory)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = ColorWarmIvory)
             )
         }
     ) { innerPadding ->
