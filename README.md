@@ -16,13 +16,13 @@
 
 </div>
 
-## About MedTrack
+## 💡 About MedTrack
 
 Imagine someone relies on a medication reminder app for an important medicine. The reminder goes off, but they forget to take it and never mark it as taken. A reminder app may simply assume they missed a dose. But what if that medicine is crucial? What if they need help and nobody knows?
 
 **That's why MedTrack involves family.** It keeps medication shared, tracks whether doses are taken, and can alert the right family members when a dose remains unmarked, helping someone notice when a loved one may need attention.
 
-## <div align="center">Main Features</div>
+## <div align="center">✨ Main Features</div>
 
 <div align="center">
 
@@ -41,40 +41,42 @@ Imagine someone relies on a medication reminder app for an important medicine. T
 
 <hr>
 
-## Additional Features
+## 🧩 Additional Features
 
-- **Authentication**
+- **🔐 Authentication**
   - Email/password signup and login
   - Email verification and password reset
 
-- **Profile Management**
+- **👤 Profile Management**
   - Edit personal details, avatar, age, gender, and About Me
 
-- **Hub Management**
+- **🏠 Hub Management**
   - Multiple family hubs
   - Hub Codes and approval-based joining
   - Member removal, leaving, Creator transfer, and hub deletion
 
-- **Medication Reminders**
+- **⏰ Medication Reminders**
   - 24-hour, 48-hour, and custom cycles
   - Missed-dose and family escalation reminders
 
-- **Permissions**
+- **🛡️ Permissions**
   - Role-based access for medication and hub management
 
-- **Real-Time Sync**
+- **🔄 Real-Time Sync**
   - Membership, medication, and status changes sync across devices
 
-- **Android Notifications**
+- **📱 Android Notifications**
   - System-level medication reminders with action support
 
-## Learn More
+## 📖 Learn More
 
-For a complete breakdown of MedTrack's functionality: **[View All Features](ALL_FEATURES.md)**
+For a complete breakdown of MedTrack's functionality:
+
+**[📋 View All Features](ALL_FEATURES.md)**
 
 <hr>
 
-<h2 align="center">The App at a Glance</h2>
+<h2 align="center">📱 The App at a Glance</h2>
 
 <p align="center">
   <em>Take a quick look at the current MedTrack MVP.</em>
@@ -86,7 +88,7 @@ For a complete breakdown of MedTrack's functionality: **[View All Features](ALL_
 
 <hr>
 
-<h2 align="center">Tech Stack</h2>
+<h2 align="center">🛠️ Tech Stack</h2>
 
 <table align="center">
   <tr>
@@ -124,6 +126,7 @@ For a complete breakdown of MedTrack's functionality: **[View All Features](ALL_
 </table>
 
 <hr>
+
 <h3 align="center">🚀 Where It Started</h3>
 
 <p align="center">
@@ -140,7 +143,7 @@ For a complete breakdown of MedTrack's functionality: **[View All Features](ALL_
 
 <hr>
 
-<h2 align="center">Support & Feedback</h2>
+<h2 align="center">💬 Support & Feedback</h2>
 
 <p align="center">
   Found a bug, have a suggestion, or something isn't working as expected?
