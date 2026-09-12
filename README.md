@@ -9,8 +9,14 @@
 **A family medication companion that helps everyone stay on track with their medication.**<br>
 **A shared space to manage medications, reminders, family members, and medication history in one place.**
 
-![Release](https://img.shields.io/badge/Release-v1.0-E5A23C)
-![Platform](https://img.shields.io/badge/Platform-Android-72B5BA)
+<div align="center">
+
+<a href="https://github.com/Rahul-7989/MedTrack-Mobile/releases/tag/v1.0">
+  <img src="https://img.shields.io/badge/Release-v1.0-E5A23C" alt="Release v1.0">
+</a>
+<img src="https://img.shields.io/badge/Platform-Android-72B5BA" alt="Platform Android">
+
+</div>
 
 <hr>
 
