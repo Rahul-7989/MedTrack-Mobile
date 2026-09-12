@@ -72,4 +72,4 @@ Imagine someone relies on a medication reminder app for an important medicine. T
 
 For a complete breakdown of MedTrack's functionality:
 
-👉 **[View All Features](ALL_FEATURES.md)**
+👉 **[View All Features](All Features.md)**
