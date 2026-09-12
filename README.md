@@ -67,3 +67,9 @@ Imagine someone relies on a medication reminder app for an important medicine. T
 
 - **Android Notifications**
   - System-level medication reminders with action support
+
+## Learn More
+
+For a complete breakdown of MedTrack's functionality:
+
+👉 **[View All Features](ALL_FEATURES.md)**
